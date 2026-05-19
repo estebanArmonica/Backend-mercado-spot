@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: Backend-ETL-Mercado-Spot
+  
+  datasource:
+    url: ${SUPERBASE_URL}
+    username: ${SUPERBASE_USER}
+    password: ${SUPERBASE_PASS}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      pool-name: ETLConnectionPool
+    
+    jpa:
+      hibernate:
+        ddl-auto: validate
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+          format_sql: true
+          jdbc:
+            batch_size: 50
+          default_schema: public
+      show-sql: false
+    
+    servlet:
+      multipart:
+        max-file-size: 100MB
+        max-request-size: 100MB
+
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+
+# Seguridad
+jwt:
+  secret: ${JWT_FIRMA}
+  expiration: ${JWT_EXPIRATION}
+
+# Logging
+logging:
+  level:
+    com.safiraenergia.mercadospot: DEBUG
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/etl-application.log
+    max-size: 100MB
+    max-history: 30
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Rate Limit
+rate:
+  limiting:
+    enabled: true
+    requests-per-second: 10

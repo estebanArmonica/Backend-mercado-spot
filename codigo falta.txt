@@ -1,0 +1,44 @@
+@Override
+    @Transactional
+    public void softDelete(ID id) {
+        log.debug("Soft deleting entity with id: {}", id);
+        // Implementar soft delete si la entidad tiene campo 'active'
+        // Por defecto, hace delete normal
+        deleteById(id);
+    }
+
+@Override
+    @Transactional
+    public void restore(ID id) {
+        log.debug("Restoring entity with id: {}", id);
+        // Implementar restore si se usa soft delete
+        throw new UnsupportedOperationException("Soft delete not implemented for this entity");
+    }
+
+@Override
+    @Transactional(readOnly = true)
+    public List<T> findActive() {
+        log.debug("Finding active entities");
+        // Implementar según la entidad
+        return findAll();
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<T> findInactive() {
+        log.debug("Finding inactive entities");
+        // Implementar según la entidad
+        return List.of();
+    }
+
+
+@SafeVarargs
+public static Specification<Factura> and(Specification<Factura>... specs) {
+    Specification<Factura> result = alwaysTrue();
+    for (Specification<Factura> spec : specs) {
+        if (spec != null) {
+            result = result.and(spec);
+        }
+    }
+    return result;
+}
