@@ -15,6 +15,6 @@ public class LoginRequest {
     @Column(name = "username", nullable = false, length = 35)
     private String username;
 
-    @Column(name = "paasword", nullable = false, length = 35)
+    @Column(name = "password", nullable = false, length = 35)
     private String password;
 }

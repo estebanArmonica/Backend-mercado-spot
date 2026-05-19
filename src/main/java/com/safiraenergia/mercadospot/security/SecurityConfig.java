@@ -92,23 +92,10 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(authorize -> 
                 authorize
-                    // Public endpoints
-                    .requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers("/api/health").permitAll()
-                    .requestMatchers("/actuator/health").permitAll()
-                    
                     // Swagger UI endpoints
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     
-                    // ETL endpoints with role-based access
-                    .requestMatchers(HttpMethod.POST, "/api/etl/**").hasAnyRole("ADMIN", "ETL_OPERATOR")
-                    .requestMatchers(HttpMethod.GET, "/api/etl/**").hasAnyRole("ADMIN", "ETL_OPERATOR", "VIEWER")
-                    
-                    // User management (ADMIN only)
-                    .requestMatchers("/api/users/**").hasRole("ADMIN")
-                    
-                    // Reports (VIEWER and above)
-                    .requestMatchers(HttpMethod.GET, "/api/reports/**").hasAnyRole("ADMIN", "VIEWER")
+                    .requestMatchers("/api/v1/auth/**").permitAll()
                     
                     // All other requests need authentication
                     .anyRequest().authenticated()
