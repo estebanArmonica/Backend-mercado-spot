@@ -9,7 +9,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.etl.transformer.validation.ValidationChain;
 import com.safiraenergia.mercadospot.exceptions.TransformationException;
 

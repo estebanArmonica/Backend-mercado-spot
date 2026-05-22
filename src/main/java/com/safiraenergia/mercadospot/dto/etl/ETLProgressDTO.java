@@ -1,4 +1,4 @@
-package com.safiraenergia.mercadospot.dto;
+package com.safiraenergia.mercadospot.dto.etl;
 
 import java.time.LocalDateTime;
 

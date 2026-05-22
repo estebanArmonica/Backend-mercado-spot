@@ -2,7 +2,7 @@ package com.safiraenergia.mercadospot.etl.transformer.validation;
 
 import org.springframework.stereotype.Component;
 
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.exceptions.ValidationException;
 
 import lombok.extern.slf4j.Slf4j;

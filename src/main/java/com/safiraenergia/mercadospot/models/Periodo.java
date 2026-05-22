@@ -1,6 +1,6 @@
 package com.safiraenergia.mercadospot.models;
 
-import java.util.Date;
+import java.sql.Date;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.CreatedDate;

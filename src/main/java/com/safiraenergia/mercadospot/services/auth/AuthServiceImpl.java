@@ -1,8 +1,8 @@
 package com.safiraenergia.mercadospot.services.auth;
 
-import com.safiraenergia.mercadospot.dto.LoginRequest;
-import com.safiraenergia.mercadospot.dto.LoginResponse;
-import com.safiraenergia.mercadospot.dto.RegisterRequest;
+import com.safiraenergia.mercadospot.dto.auth.LoginRequest;
+import com.safiraenergia.mercadospot.dto.auth.LoginResponse;
+import com.safiraenergia.mercadospot.dto.auth.RegisterRequest;
 import com.safiraenergia.mercadospot.models.Rol;
 import com.safiraenergia.mercadospot.models.Usuario;
 import com.safiraenergia.mercadospot.repository.IRolRepository;

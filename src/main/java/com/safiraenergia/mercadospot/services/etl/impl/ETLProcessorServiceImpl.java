@@ -1,8 +1,8 @@
 package com.safiraenergia.mercadospot.services.etl.impl;
 
-import com.safiraenergia.mercadospot.dto.ETLProgressDTO;
-import com.safiraenergia.mercadospot.dto.ETLResultDTO;
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.etl.ETLProgressDTO;
+import com.safiraenergia.mercadospot.dto.etl.ETLResultDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.enums.ETLStatus;
 import com.safiraenergia.mercadospot.etl.extractor.DataExtractor;
 import com.safiraenergia.mercadospot.etl.extractor.ExtractorFactory;

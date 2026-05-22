@@ -1,4 +1,4 @@
-package com.safiraenergia.mercadospot.dto;
+package com.safiraenergia.mercadospot.dto.factura;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

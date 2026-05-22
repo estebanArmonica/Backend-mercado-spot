@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.safiraenergia.mercadospot.dto.LoginRequest;
-import com.safiraenergia.mercadospot.dto.LoginResponse;
+import com.safiraenergia.mercadospot.dto.auth.LoginRequest;
+import com.safiraenergia.mercadospot.dto.auth.LoginResponse;
 import com.safiraenergia.mercadospot.services.auth.IAuthService;
 
 import io.swagger.v3.oas.annotations.Operation;

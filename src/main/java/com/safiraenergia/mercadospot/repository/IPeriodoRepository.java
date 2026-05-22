@@ -1,6 +1,6 @@
 package com.safiraenergia.mercadospot.repository;
 
-import java.util.Date;
+import java.sql.Date;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,4 +18,6 @@ public interface IPeriodoRepository extends JpaRepository<Periodo, Long>{
     Optional<Periodo> findByYearAndMonth(@Param("year") int year, @Param("month") int month);
 
     Optional<Periodo> findByMes(Date mes);
+
+    boolean existsByMes(Date mes);
 }

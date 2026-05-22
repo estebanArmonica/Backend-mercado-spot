@@ -1,4 +1,4 @@
-package com.safiraenergia.mercadospot.dto;
+package com.safiraenergia.mercadospot.dto.auth;
 
 import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;

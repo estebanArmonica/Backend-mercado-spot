@@ -2,8 +2,8 @@ package com.safiraenergia.mercadospot.services.etl;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import com.safiraenergia.mercadospot.dto.ETLProgressDTO;
-import com.safiraenergia.mercadospot.dto.ETLResultDTO;
+import com.safiraenergia.mercadospot.dto.etl.ETLProgressDTO;
+import com.safiraenergia.mercadospot.dto.etl.ETLResultDTO;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

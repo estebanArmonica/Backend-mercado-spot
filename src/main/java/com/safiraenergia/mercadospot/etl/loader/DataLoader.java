@@ -1,6 +1,6 @@
 package com.safiraenergia.mercadospot.etl.loader;
 
-import java.util.Date;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Map;
@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.models.Entidad;
 import com.safiraenergia.mercadospot.models.Factura;
 import com.safiraenergia.mercadospot.models.Glosa;

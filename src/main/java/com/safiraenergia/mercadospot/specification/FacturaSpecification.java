@@ -1,6 +1,6 @@
 package com.safiraenergia.mercadospot.specification;
 
-import com.safiraenergia.mercadospot.dto.FacturaFilterDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaFilterDTO;
 import com.safiraenergia.mercadospot.models.Factura;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;

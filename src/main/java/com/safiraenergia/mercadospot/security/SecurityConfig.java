@@ -5,7 +5,6 @@ import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -26,13 +25,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true)
 public class SecurityConfig {
 
-    private final JwtAuthenticationEntryPoin jwtAuthenticationEntryPoin;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoin;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SqlInjectionFilter sqlInjectionFilter;
 
     
     @Autowired
-    public SecurityConfig(JwtAuthenticationEntryPoin jwtAuthenticationEntryPoin, JwtAuthenticationFilter jwtAuthenticationFilter, SqlInjectionFilter sqlInjectionFilter) {
+    public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoin, JwtAuthenticationFilter jwtAuthenticationFilter, SqlInjectionFilter sqlInjectionFilter) {
         this.jwtAuthenticationEntryPoin = jwtAuthenticationEntryPoin;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.sqlInjectionFilter = sqlInjectionFilter;
@@ -96,6 +95,9 @@ public class SecurityConfig {
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     
                     .requestMatchers("/api/v1/auth/**").permitAll()
+                    .requestMatchers("/api/v1/etl/upload").permitAll()
+                    .requestMatchers("/api/v1/etl/progress/**").permitAll()
+                    .requestMatchers("/api/v1/etl/cancel/**").permitAll()
                     
                     // All other requests need authentication
                     .anyRequest().authenticated()

@@ -1,6 +1,6 @@
 package com.safiraenergia.mercadospot.etl.transformer.validation;
 
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.exceptions.ValidationException;
 
 public interface Validator {

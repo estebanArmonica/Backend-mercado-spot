@@ -1,6 +1,6 @@
-package com.safiraenergia.mercadospot.dto;
+package com.safiraenergia.mercadospot.dto.factura;
 
-import java.util.Date;
+import java.sql.Date;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

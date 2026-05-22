@@ -1,8 +1,8 @@
 package com.safiraenergia.mercadospot.services.factura;
 
-import com.safiraenergia.mercadospot.dto.FacturaDTO;
-import com.safiraenergia.mercadospot.dto.FacturaFilterDTO;
-import com.safiraenergia.mercadospot.dto.FacturaResponseDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaFilterDTO;
+import com.safiraenergia.mercadospot.dto.factura.FacturaResponseDTO;
 import com.safiraenergia.mercadospot.models.Factura;
 import com.safiraenergia.mercadospot.services.core.utils.IGenericServiceUtils;
 
