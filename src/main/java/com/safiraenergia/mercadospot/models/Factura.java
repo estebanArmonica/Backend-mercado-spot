@@ -72,4 +72,12 @@ public class Factura {
         inverseJoinColumns = @JoinColumn(name = "estado_id", referencedColumnName = "id_estado"))
     @Builder.Default
     private Set<Estado> estados = new HashSet<>();
+
+    // Método helpers para agregar estado evitando detached entity
+    public void addEstado(Estado estado){
+        // nos aseguramos de que el estado sea managed por JPA
+        if(estado != null && estado.getId() != null){
+            this.estados.add(estado);
+        }
+    }
 }

@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Implementación del servicio ETL
@@ -77,7 +78,7 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             // 3. Transformar datos
             progress.setStatus(ETLStatus.TRANSFORMING);
             progress.setCurrentStep("Transformando datos...");
-            List<FacturaDTO> facturas = transformer.transform(rawData);
+            List<FacturaDTO> facturas = transformer.transform(rawData, jobId);
             progress.setRecordsTransformed(facturas.size());
             
             // 4. Validar datos transformados
@@ -193,20 +194,46 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
         if (facturas == null || facturas.isEmpty()) {
             throw new ETLException("No valid data found in file");
         }
-        
-        // Validaciones adicionales de negocio
-        long duplicateFolios = facturas.stream()
-            .map(FacturaDTO::getFolio)
-            .filter(folio -> facturas.stream().filter(f -> f.getFolio().equals(folio)).count() > 1)
+
+        // contamos facturas validas (con folio > 0)
+        long validFacturas = facturas.stream()
+            .filter(f -> f.getFolio() != null && f.getFolio() > 0)
             .count();
-        
+
+        if (validFacturas == 0) {
+            throw new ETLException("No valid facturas found in file. Check that folio numbers are present.");
+        }
+
+        log.info("Found {} valid facturas out of {} total", validFacturas, facturas.size());
+
+        // Validaciones adicionales de negocio
+        Map<Long, Long> duplicateMap = facturas.stream()
+            .filter(f -> f.getFolio() != null && f.getFolio() > 0)
+            .collect(Collectors.groupingBy(FacturaDTO::getFolio, Collectors.counting()));
+            
+        // Validaciones adicionales de negocio
+        long duplicateFolios = duplicateMap.values().stream().filter(count -> count > 1).count();
+
         if (duplicateFolios > 0) {
             log.warn("Found {} duplicate folios in file", duplicateFolios);
         }
     }
     
     private LoadResult loadInBatches(List<FacturaDTO> facturas, ETLProgressDTO progress) {
-        LoadResult totalResult = new LoadResult(0, 0, 0, new java.util.ArrayList<>());
+
+        // filtramos facturas invalidas antes de cargar
+        List<FacturaDTO> validFacturas = facturas.stream()
+            .filter(f -> f.getFolio() != null && f.getFolio() > 0)
+            .collect(Collectors.toList());
+        
+        if(validFacturas.isEmpty()){
+            log.warn("No valid facturas to load after filtering");
+            return new LoadResult(0, 0, facturas.size(), List.of("No valid facturas found"));
+        }
+        
+        log.info("Loading {} valid facturas out of {} total", validFacturas.size(), facturas.size());
+        return loader.load(validFacturas);
+        /*LoadResult totalResult = new LoadResult(0, 0, 0, new java.util.ArrayList<>());
         int totalRecords = facturas.size();
         
         for (int i = 0; i < totalRecords; i += batchSize) {
@@ -233,7 +260,7 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             progress.setRecordsLoaded(end);
         }
         
-        return totalResult;
+        return totalResult;*/
     }
     
     private ETLResultDTO buildResult(String jobId, ETLProgressDTO progress, LoadResult result) {

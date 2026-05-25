@@ -22,4 +22,5 @@ public class FacturaDTO {
     private Date fechaPago;
     private Date periodo;
     private String glosa, rutEntidad, nomEntidad;
+    private String estado, tipoEntidad, estadoOriginal;
 }

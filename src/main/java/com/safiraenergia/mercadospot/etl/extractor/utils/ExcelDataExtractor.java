@@ -23,8 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
-public class ExcelDataExtractor implements DataExtractor{@Override
+public class ExcelDataExtractor implements DataExtractor{
     
+    @Override
     public List<Map<String, Object>> extract(InputStream source) throws ExtractionException {
         List<Map<String, Object>> data = new ArrayList<>();
 
@@ -60,26 +61,51 @@ public class ExcelDataExtractor implements DataExtractor{@Override
     private List<String> getHeaders(Row headerRow) {
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(getCellValue(cell).toString());
+            String headerValue = getCellValue(cell).toString().trim();
+            headers.add(headerValue);
         }
+        log.info("Headers encontrados_ {}", headers);
         return headers;
+    }
+
+    // método para detectar fórmulas
+    private boolean isFormulaCell(Cell cell){
+        return cell != null && cell.getCellType() == CellType.FORMULA;
     }
 
     private Object getCellValue(Cell cell){
         if(cell == null) return null;
 
-        return switch(cell.getCellType()){
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> {
-                if(DateUtil.isCellDateFormatted(cell)){
-                    yield cell.getDateCellValue();
+        // si es fórmula, intentar obtener el valor cached o retornar null
+        if(cell.getCellType() == CellType.FORMULA){
+            try {
+                switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC:
+                        return cell.getNumericCellValue();
+                    case STRING:
+                        return cell.getStringCellValue();
+                    default:
+                        return cell.getCellFormula();
                 }
-                yield cell.getNumericCellValue();
+            } catch (Exception e) {
+                log.warn("Cannot evaluate formula: {}", cell.getCellFormula());
+                return cell.getCellFormula();
             }
-            case BOOLEAN -> cell.getBooleanCellValue();
-            case FORMULA -> cell.getCellFormula();
-            default -> null;
-        };
+        }
+
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if(DateUtil.isCellDateFormatted(cell)){
+                    return cell.getDateCellValue();
+                }
+                return cell.getNumericCellValue();
+            case BOOLEAN:
+                return cell.getBooleanCellValue();
+            default:
+                return null;
+        }
     }
 
     private boolean isRowEmpty(Row row) {
@@ -91,5 +117,4 @@ public class ExcelDataExtractor implements DataExtractor{@Override
         }
         return true;
     }
-    
 }

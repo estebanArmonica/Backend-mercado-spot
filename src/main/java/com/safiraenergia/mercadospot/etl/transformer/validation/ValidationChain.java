@@ -42,7 +42,7 @@ class NotNullValidator implements Validator {
     
     @Override
     public void validate(FacturaDTO dto) throws ValidationException {
-        if (dto.getFolio() == null) {
+        if (dto.getFolio() == null || dto.getFolio() <= 0) {
             throw new ValidationException("Folio cannot be null");
         }
         if (dto.getMontoNeto() == 0) {
