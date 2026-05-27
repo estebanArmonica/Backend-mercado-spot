@@ -21,15 +21,28 @@ public class ExtractorFactory {
 
     @PostConstruct
     public void init(){
-        for (DataExtractor extractor: extractorList) {
-            extractores.put(extractor.getClass().getSimpleName(), extractor);
+        System.out.println("=== ExtractorFactory Initialization ===");
+        for (DataExtractor extractor : extractorList) {
+            String className = extractor.getClass().getSimpleName();
+            extractores.put(className, extractor);
+            System.out.println("Registered extractor: " + className);
         }
+        System.out.println("Total extractors registered: " + extractores.size());
     }
 
     public DataExtractor getExtractor(String fileType) {
+        System.out.println("Looking for extractor for file type: " + fileType);
+        
         return extractorList.stream()
-                .filter(e -> e.supports(fileType))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No Extractor found for file type: " + fileType));
+            .filter(e -> {
+                boolean supports = e.supports(fileType);
+                System.out.println("  - " + e.getClass().getSimpleName() + " supports: " + supports);
+                return supports;
+            })
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException(
+                "No Extractor found for file type: " + fileType + 
+                ". Available extractors: " + extractorList.size()
+            ));
     }
 }

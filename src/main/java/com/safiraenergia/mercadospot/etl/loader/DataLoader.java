@@ -23,20 +23,27 @@ public class DataLoader {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         
-        int batchSize = 50;
+        int batchSize = 25;
         
         for (int i = 0; i < facturas.size(); i += batchSize) {
             int end = Math.min(i + batchSize, facturas.size());
             List<FacturaDTO> batch = facturas.subList(i, end);
             
-            // Cada batch se procesa en su propia transacción
-            LoadResult batchResult = transactionService.processBatch(batch);
-            
-            inserted += batchResult.getInserted();
-            skipped += batchResult.getSkipped();
-            errors.addAll(batchResult.getErrors());
-            
-            log.debug("Batch processed - Inserted: {}, Skipped: {}", batchResult.getInserted(), batchResult.getSkipped());
+            try {
+                // Cada batch se procesa en su propia transacción
+                LoadResult batchResult = transactionService.processBatch(batch);
+
+                inserted += batchResult.getInserted();
+                skipped += batchResult.getSkipped();
+                errors.addAll(batchResult.getErrors());
+
+                log.debug("Batch processed - Inserted: {}, Skipped: {}", batchResult.getInserted(), batchResult.getSkipped());
+            } catch (Exception e) {
+                log.error("Error processing batch {}-{}", i, end, e);
+                errors.add("Batch " + i +"-" + end +" failed: " + e.getMessage());
+                
+                skipped += batch.size();
+            }
         }
         
         log.info("Load completed - Inserted: {}, Skipped: {}, Errors: {}", inserted, skipped, errors.size());

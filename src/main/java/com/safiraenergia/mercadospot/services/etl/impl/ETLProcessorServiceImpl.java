@@ -11,6 +11,7 @@ import com.safiraenergia.mercadospot.etl.loader.LoadResult;
 import com.safiraenergia.mercadospot.etl.transformer.DataTransformer;
 import com.safiraenergia.mercadospot.exceptions.ETLException;
 import com.safiraenergia.mercadospot.services.factura.IFacturaService;
+import com.safiraenergia.mercadospot.utils.ETLLogger;
 import com.safiraenergia.mercadospot.services.etl.IETLProcessorService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +43,7 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
     private final DataTransformer transformer;
     private final DataLoader loader;
     private final IFacturaService facturaService;
+    private final ETLLogger etlLogger;
 
     @Value("${etl.batch.size:100}")
     private int batchSize;
@@ -49,37 +53,61 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
     private final Map<String, CompletableFuture<ETLResultDTO>> jobFutureMap = new ConcurrentHashMap<>();
 
     @Autowired
-    public ETLProcessorServiceImpl(ExtractorFactory extractorFactory, DataTransformer transformer, DataLoader loader, IFacturaService facturaService) {
+    public ETLProcessorServiceImpl(ExtractorFactory extractorFactory, DataTransformer transformer, DataLoader loader, IFacturaService facturaService, ETLLogger etlLogger) {
         this.extractorFactory = extractorFactory;
         this.transformer = transformer;
         this.loader = loader;
         this.facturaService = facturaService;
+        this.etlLogger = etlLogger;
     }
     
     @Override
-    @Async("etlTaskExecutor")
     public CompletableFuture<ETLResultDTO> processExcelFile(MultipartFile file, String usuarioId) {
         String jobId = UUID.randomUUID().toString();
-        ETLProgressDTO progress = initializeProgress(jobId, usuarioId, file.getOriginalFilename());
+        
+        // Leer el contenido del archivo ANTES de iniciar el hilo asíncrono
+        byte[] fileContent;
+        String fileName = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        
+        try {
+            fileContent = file.getBytes(); // Leer todo el contenido ahora
+            etlLogger.logInfo(jobId, "Archivo leído exitosamente: " + fileName + " (" + fileContent.length + " bytes)");
+        } catch (IOException e) {
+            etlLogger.logError(jobId, "Error al leer el archivo", e);
+            return CompletableFuture.completedFuture(createErrorResult(jobId, "Error al leer el archivo: " + e.getMessage()));
+        }
+        
+        // Procesar asíncronamente con los bytes del archivo
+        return processExcelFileAsync(jobId, fileContent, contentType, fileName, usuarioId);
+    }
+
+    @Async("etlTaskExecutor")
+    public CompletableFuture<ETLResultDTO> processExcelFileAsync(String jobId, byte[] fileContent, String contentType, String fileName, String usuarioId) {
+        ETLProgressDTO progress = initializeProgress(jobId, usuarioId, fileName);
         
         try {
             // 1. Validar archivo
-            validateFile(file);
+            validateFile(fileContent, contentType, fileName);
             progress.setStatus(ETLStatus.VALIDATING);
             progress.setCurrentStep("Validando archivo...");
             
             // 2. Extraer datos
             progress.setStatus(ETLStatus.EXTRACTING);
             progress.setCurrentStep("Extrayendo datos del Excel...");
-            DataExtractor extractor = extractorFactory.getExtractor(file.getContentType());
-            List<Map<String, Object>> rawData = extractor.extract(file.getInputStream());
+            
+            DataExtractor extractor = extractorFactory.getExtractor(contentType);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(fileContent);
+            List<Map<String, Object>> rawData = extractor.extract(inputStream);
             progress.setRecordsExtracted(rawData.size());
+            etlLogger.logInfo(jobId, "Extraídos " + rawData.size() + " registros del Excel");
             
             // 3. Transformar datos
             progress.setStatus(ETLStatus.TRANSFORMING);
             progress.setCurrentStep("Transformando datos...");
             List<FacturaDTO> facturas = transformer.transform(rawData, jobId);
             progress.setRecordsTransformed(facturas.size());
+            etlLogger.logInfo(jobId, "Transformados " + facturas.size() + " registros a FacturaDTO");
             
             // 4. Validar datos transformados
             progress.setStatus(ETLStatus.VALIDATING);
@@ -95,6 +123,7 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             progress.setStatus(ETLStatus.COMPLETED);
             progress.setProgress(100);
             
+            etlLogger.logSuccess(jobId, "ETL completado exitosamente", result.getInserted());
             log.info("ETL job {} completed successfully. Inserted: {}, Errors: {}", 
                      jobId, result.getInserted(), result.getErrors().size());
             
@@ -102,21 +131,43 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             
         } catch (Exception e) {
             log.error("ETL job {} failed", jobId, e);
+            etlLogger.logError(jobId, "ETL job failed", e);
             progress.setStatus(ETLStatus.FAILED);
             progress.setErrorMessage(e.getMessage());
             
-            ETLResultDTO errorResult = ETLResultDTO.builder()
-                .jobId(jobId)
-                .status(ETLStatus.FAILED)
-                .errorMessage(e.getMessage())
-                .startTime(LocalDateTime.now())
-                .endTime(LocalDateTime.now())
-                .build();
+            ETLResultDTO errorResult = createErrorResult(jobId, e.getMessage());
             
             return CompletableFuture.completedFuture(errorResult);
         } finally {
             jobProgressMap.put(jobId, progress);
         }
+    }
+
+    private void validateFile(byte[] fileContent, String contentType, String fileName) {
+        if (fileContent == null || fileContent.length == 0) {
+            throw new ETLException("File is empty");
+        }
+        
+        if (contentType == null || (!contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") 
+                && !contentType.equals("application/vnd.ms-excel"))) {
+            throw new ETLException("Invalid file type: " + contentType + ". Only Excel files are allowed");
+        }
+        
+        if (fileContent.length > 100 * 1024 * 1024) { // 100 MB
+            throw new ETLException("File size exceeds maximum allowed size (100 MB)");
+        }
+        
+        log.info("File validated - Name: {}, Type: {}, Size: {} bytes", fileName, contentType, fileContent.length);
+    }
+
+    private ETLResultDTO createErrorResult(String jobId, String errorMessage) {
+        return ETLResultDTO.builder()
+            .jobId(jobId)
+            .status(ETLStatus.FAILED)
+            .errorMessage(errorMessage)
+            .startTime(LocalDateTime.now())
+            .endTime(LocalDateTime.now())
+            .build();
     }
 
     @Override
@@ -233,34 +284,6 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
         
         log.info("Loading {} valid facturas out of {} total", validFacturas.size(), facturas.size());
         return loader.load(validFacturas);
-        /*LoadResult totalResult = new LoadResult(0, 0, 0, new java.util.ArrayList<>());
-        int totalRecords = facturas.size();
-        
-        for (int i = 0; i < totalRecords; i += batchSize) {
-            int end = Math.min(i + batchSize, totalRecords);
-            List<FacturaDTO> batch = facturas.subList(i, end);
-            
-            progress.setCurrentStep(String.format("Cargando lote %d de %d", (i / batchSize) + 1, 
-                                   (int) Math.ceil((double) totalRecords / batchSize)));
-            
-            LoadResult batchResult = loader.load(batch);
-            
-            // Acumular resultados
-            totalResult = new LoadResult(
-                totalResult.getInserted() + batchResult.getInserted(),
-                totalResult.getUpdated() + batchResult.getUpdated(),
-                totalResult.getSkipped() + batchResult.getSkipped(),
-                totalResult.getErrors()
-            );
-            totalResult.getErrors().addAll(batchResult.getErrors());
-            
-            // Actualizar progreso
-            int progressPercent = (int) (((double) end / totalRecords) * 100);
-            progress.setProgress(progressPercent);
-            progress.setRecordsLoaded(end);
-        }
-        
-        return totalResult;*/
     }
     
     private ETLResultDTO buildResult(String jobId, ETLProgressDTO progress, LoadResult result) {

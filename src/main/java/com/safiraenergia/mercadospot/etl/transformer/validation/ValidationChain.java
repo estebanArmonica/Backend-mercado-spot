@@ -43,14 +43,16 @@ class NotNullValidator implements Validator {
     @Override
     public void validate(FacturaDTO dto) throws ValidationException {
         if (dto.getFolio() == null || dto.getFolio() <= 0) {
-            throw new ValidationException("Folio cannot be null");
+            throw new ValidationException("Folio cannot be null or zero");
         }
         if (dto.getMontoNeto() == 0) {
-            throw new ValidationException("Monto neto cannot be null");
+            throw new ValidationException("Monto neto cannot be zero");
         }
         if (dto.getRutEntidad() == null || dto.getRutEntidad().isEmpty()) {
             throw new ValidationException("RUT cannot be null or empty");
         }
+
+        // No valida el estado, por defecto lo deja en PENDIENTE
         if (next != null) next.validate(dto);
     }
     

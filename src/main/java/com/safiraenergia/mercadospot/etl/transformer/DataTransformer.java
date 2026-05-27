@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -178,11 +179,9 @@ public class DataTransformer {
 
 
     /**
-     * Normaliza el estado de pago a los valores esperados por la base de datos
-     * Maneja:
-     * - Palabras: Pagado, Pendiente, Vencido, Anulado, Parcial
-     * - Códigos numéricos: si el código tiene más de 10 caracteres, se considera como identificador único
-     * - Valores vacíos: por defecto PENDIENTE
+     * Normaliza el estado de pago a solo dos valores: PAGADA o PENDIENTE
+     * - Si el estado contiene "Pagado" (insensible a mayúsculas) → PAGADA
+     * - Cualquier otro valor (códigos, vacío, null, etc.) → PENDIENTE
     */
     private String normalizarEstado(String estado) {
         if (estado == null || estado.trim().isEmpty()) {
@@ -191,29 +190,12 @@ public class DataTransformer {
         
         String estadoLower = estado.toLowerCase().trim();
         
-        // Palabras clave
-        if (estadoLower.contains("pagado") || estadoLower.contains("pagada") || estadoLower.contains("paid")) {
+        // Solo detectar "pagado"
+        if (estadoLower.contains("pagado")) {
             return "PAGADA";
         }
-        if (estadoLower.contains("vencido") || estadoLower.contains("vencida") || estadoLower.contains("expired")) {
-            return "VENCIDA";
-        }
-        if (estadoLower.contains("anulado") || estadoLower.contains("anulada") || estadoLower.contains("cancelled")) {
-            return "ANULADA";
-        }
-        if (estadoLower.contains("parcial")) {
-            return "PARCIAL";
-        }
-        if (estadoLower.contains("pendiente") || estadoLower.contains("pending")) {
-            return "PENDIENTE";
-        }
-        
-        // Si es un código como "76519771-6295" (RUT-xxxx)
-        if (estado.matches("^\\d{7,8}-\\d+$")) {
-            // Por defecto, considerarlo como pagado si es un código de acreedor
-            return "PAGADA";
-        }
-        
+
+        // cualquier otro valor (códigos como numeros, valores, vacío, etc.) se tomo pendiente
         return "PENDIENTE";
     }
 
@@ -221,14 +203,7 @@ public class DataTransformer {
      * Detecta el tipo de estado basado en el código numérico
     */
     private String detectarTipoEstadoPorCodigo(String codigo) {
-        // Si el código contiene ciertos patrones, se puede determinar el estado
-        if (codigo.contains("0") && !codigo.contains("1")) {
-            return "PENDIENTE";
-        }
-        if (codigo.contains("1") && codigo.length() > 10) {
-            return "PAGADA";
-        }
-        // Por defecto, pendiente
+        // por defecto dejamos que todos los códigos son de tipo PENDIENTE hasta que se realice el cambio de forma automatica
         return "PENDIENTE";
     }
 
@@ -304,9 +279,34 @@ public class DataTransformer {
     
     private Date convertToDate(Object value) {
         if(value == null) return null;
-        if(value instanceof Date) return (Date) value;
-        if(value instanceof java.util.Date) return new Date(((java.util.Date) value).getTime());
-        if(value instanceof String) return parseDate((String) value);
+
+        // si la fecha es de tipo java.sql.Date
+        if(value instanceof Date){
+            return (Date) value;
+        }
+
+        // si la fecha es de tipo java.util.Date
+        if(value instanceof java.util.Date){
+            java.util.Date utilDate = (java.util.Date) value;
+            return new Date(utilDate.getTime());
+        }
+
+        // en caso de ser númerico (fecha de Excel como número)
+        if(value instanceof Number){
+            double excelData = ((Number) value).doubleValue();
+
+            // las fechas de Excel empiezan desde 1990-01-01
+            java.util.Date utilDate = DateUtil.getJavaDate(excelData);
+            if(utilDate != null) {
+                return new Date(utilDate.getTime());
+            }
+        }
+
+        // si es un String
+        if(value instanceof String){
+            return parseDate((String) value);
+        }
+
         return null;
     }
 

@@ -51,7 +51,7 @@ public class ETLTransactionService {
     private final ConcurrentHashMap<String, Glosa> glosaCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Entidad> entidadCache = new ConcurrentHashMap<>();
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public LoadResult processBatch(List<FacturaDTO> facturas) {
         int inserted = 0;
         int skipped = 0;
@@ -66,7 +66,7 @@ public class ETLTransactionService {
                 }
                 
                 // Calcular monto total si es necesario
-                if (dto.getMontoTotal() == 0 || dto.getMontoTotal() == 0) {
+                if (dto.getMontoTotal() == 0) {
                     double calculatedTotal = dto.getMontoNeto() * 1.19;
                     dto.setMontoTotal((int) Math.round(calculatedTotal));
                 }
@@ -125,7 +125,12 @@ public class ETLTransactionService {
             }
         }
         if (inserted > 0) {
-            facturaRepo.flush();
+            try {
+                facturaRepo.flush();
+            } catch (Exception e) {
+                log.error("Error flushing batch", e);
+                errors.add("Batch flush error: " + e.getMessage());
+            }
         }
         
         return new LoadResult(inserted, 0, skipped, errors);
