@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -62,9 +61,7 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
     }
     
     @Override
-    public CompletableFuture<ETLResultDTO> processExcelFile(MultipartFile file, String usuarioId) {
-        String jobId = UUID.randomUUID().toString();
-        
+    public CompletableFuture<ETLResultDTO> processExcelFile(MultipartFile file, String usuarioId, String jobId) {
         // Leer el contenido del archivo ANTES de iniciar el hilo asíncrono
         byte[] fileContent;
         String fileName = file.getOriginalFilename();
@@ -77,6 +74,9 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             etlLogger.logError(jobId, "Error al leer el archivo", e);
             return CompletableFuture.completedFuture(createErrorResult(jobId, "Error al leer el archivo: " + e.getMessage()));
         }
+
+        // inicializamos el progreso inmediatamente para que esté disponible el log
+        initializeProgress(jobId, usuarioId, fileName);
         
         // Procesar asíncronamente con los bytes del archivo
         return processExcelFileAsync(jobId, fileContent, contentType, fileName, usuarioId);
@@ -218,10 +218,15 @@ public class ETLProcessorServiceImpl implements IETLProcessorService{
             .fileName(fileName)
             .status(ETLStatus.STARTED)
             .progress(0)
+            .currentStep("Iniciando proceso....")
+            .recordsExtracted(0)
+            .recordsTransformed(0)
+            .recordsLoaded(0)
             .startTime(LocalDateTime.now())
             .build();
         
         jobProgressMap.put(jobId, progress);
+        etlLogger.logInfo(jobId, "Progreso inicializado para Job: " + jobId);
         return progress;
     }
     

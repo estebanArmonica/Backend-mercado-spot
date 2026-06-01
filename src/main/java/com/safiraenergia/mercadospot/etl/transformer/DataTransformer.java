@@ -94,9 +94,32 @@ public class DataTransformer {
         // Normalizar estado
         String estadoNormalizado = normalizarEstado(estadoLimpio);
         
+
+        // obtenemos el objeto de Fecha Emision directamente
+        Object fechaEmisionObj = getValueFromRow(row, "fecha_emision", "Fecha de Emision", "Fecha Emision", "Fecha Emisión");
+        Object fechaPagoObj = getValueFromRow(row, "fecha_pago", "Fecha de Pago", "Fecha Pago");
+
         // Procesar fechas
-        Date fechaEmision = convertToDate(fechaEmisionLimpia);
-        Date fechaPago = convertToDate(fechaPagoLimpia);
+        Date fechaEmision = convertToDate(fechaEmisionObj);
+        Date fechaPago = convertToDate(fechaPagoObj);
+
+        // validacion de datos en fecha emision
+        if(fechaEmision == null && fechaEmisionObj != null) {
+            log.warn("Row {}: No se pudo convertir fechaEmision: '{}' (tipo: {})", rowIndex, fechaEmisionObj, fechaEmisionObj.getClass().getSimpleName());
+            etlLogger.logWarning(jobId, "Row " + rowIndex + "No se pudo convertir fechaEmision: " + fechaEmisionObj);
+        } else if (fechaEmision != null) {
+            log.debug("Row {}: fechaEmision convertida a: {}", rowIndex, fechaEmision);
+        }
+
+        // validacion para fecha de pago
+        if (fechaPago == null && fechaPagoObj != null) {
+            log.debug("Row {}: No se pudo convertir fechaPago: '{}' (tipo: {})", 
+                rowIndex, fechaPagoObj, fechaPagoObj.getClass().getSimpleName());
+        }
+
+        // obtenemos el tipo de entidad desde el campo agregado
+        String tipoEntidadFromSheet = convertToString(row.get("_tipoEntidad"));
+        String tipoEntidad = tipoEntidadFromSheet != null ? tipoEntidadFromSheet : detectarTipoEntidad(row, rowIndex);
         
         // Si es PAGADA pero no tiene fecha de pago, derivarla
         if ("PAGADA".equals(estadoNormalizado) && fechaPago == null) {
@@ -124,7 +147,7 @@ public class DataTransformer {
             .periodo(convertToDate(getValueFromRow(row, "periodo", "Período", "Periodo", "Fecha")))
             .estado(estadoNormalizado)
             .estadoOriginal(estadoLimpio)  // Guardar el valor original
-            .tipoEntidad(detectarTipoEntidad(row, rowIndex))
+            .tipoEntidad(tipoEntidad)
             .build();
     }
 

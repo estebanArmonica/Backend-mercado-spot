@@ -15,9 +15,13 @@ import java.util.concurrent.CompletableFuture;
 public interface IETLProcessorService {
     
     /**
-     * Procesa el archivo Excel de forma asíncronica
+     * Procesa el Archivo Excel de forma asíncronica 
+     * @param file: Archivo Excel
+     * @param usuarioId: El ID del usuario quien realizo el job
+     * @param jobId: El jobId unico del trabajo
+     * @return
     */
-    CompletableFuture<ETLResultDTO> processExcelFile(MultipartFile file, String usuarioId);
+    CompletableFuture<ETLResultDTO> processExcelFile(MultipartFile file, String usuarioId, String jobId);
 
     /**
      * Obtiene el progreso de un trabajo ETL

@@ -51,7 +51,7 @@ public class ETLTransactionService {
     private final ConcurrentHashMap<String, Glosa> glosaCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Entidad> entidadCache = new ConcurrentHashMap<>();
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, timeout = 300)
     public LoadResult processBatch(List<FacturaDTO> facturas) {
         int inserted = 0;
         int skipped = 0;
@@ -116,7 +116,7 @@ public class ETLTransactionService {
                 // Agregar estado a la factura
                 factura.getEstados().add(estado);
                 
-                facturaRepo.save(factura);
+                facturaRepo.saveAndFlush(factura);
                 inserted++;
                 
             } catch (Exception e) {
@@ -124,15 +124,7 @@ public class ETLTransactionService {
                 errors.add("Failed to load folio " + dto.getFolio() + ": " + e.getMessage());
             }
         }
-        if (inserted > 0) {
-            try {
-                facturaRepo.flush();
-            } catch (Exception e) {
-                log.error("Error flushing batch", e);
-                errors.add("Batch flush error: " + e.getMessage());
-            }
-        }
-        
+
         return new LoadResult(inserted, 0, skipped, errors);
     }
 
@@ -143,7 +135,10 @@ public class ETLTransactionService {
         if (dto.getGlosa() == null || dto.getGlosa().trim().isEmpty()) return false;
         if (dto.getRutEntidad() == null || dto.getRutEntidad().trim().isEmpty()) return false;
         if (dto.getNomEntidad() == null || dto.getNomEntidad().trim().isEmpty()) return false;
-        if (dto.getMontoNeto() == 0 || dto.getMontoNeto() < 0) return false;
+        if (dto.getMontoNeto() == 0 || dto.getMontoNeto() <= 0) {
+            log.debug("Invalid montNeto: {}", dto.getMontoNeto());
+            return false;
+        }
         return true;
     }
 
@@ -190,13 +185,13 @@ public class ETLTransactionService {
                         .rutEntidad(normalizedRut)
                         .nombre(normalizedNombre)
                         .build();
-                    return entidadRepo.save(nuevaEntidad);
+                    return entidadRepo.saveAndFlush(nuevaEntidad);
                 });
             
             // Agregar el tipo de entidad si no lo tiene
             if (tipoEntidad != null && !entidad.getTipoEntidad().contains(tipoEntidad)) {
                 entidad.getTipoEntidad().add(tipoEntidad);
-                entidad = entidadRepo.save(entidad);
+                entidad = entidadRepo.saveAndFlush(entidad);
                 log.debug("Added tipoEntidad {} to entidad {}", tipoEntidad.getTipoRol(), normalizedRut);
             }
             

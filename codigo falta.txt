@@ -75,3 +75,29 @@ SERVER_PORT=9090 ./start.sh start
 
 # Ayuda
 ./start.sh help
+
+
+
+
+
+
+
+
+
+
+private FacturaDTO transformRow(Map<String, Object> row, int rowIndex, String jobId) {
+    // ... código existente ...
+    
+    // Agregar logging para depuración de fechas
+    Object fechaEmisionObj = getValueFromRow(row, "fecha_emision", "Fecha de Emision", "Fecha Emision", "Fecha Emisión");
+    Date fechaEmision = convertToDate(fechaEmisionObj);
+    
+    if (fechaEmision == null && fechaEmisionObj != null) {
+        log.warn("Row {}: No se pudo convertir fechaEmision: '{}' (tipo: {})", 
+            rowIndex, fechaEmisionObj, fechaEmisionObj.getClass().getSimpleName());
+    } else if (fechaEmision != null) {
+        log.debug("Row {}: fechaEmision convertida a: {}", rowIndex, fechaEmision);
+    }
+    
+    // ... resto del código ...
+}

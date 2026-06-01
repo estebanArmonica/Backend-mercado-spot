@@ -2,6 +2,7 @@ package com.safiraenergia.mercadospot.etl.extractor.utils;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,59 +27,115 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class ExcelDataExtractor implements DataExtractor {
+
+    private static final String SHEET_DEUDOR = "Cargos (Deudor)";
+    private static final String SHEET_ACREEDOR = "Abonos (Acreedor)";
     
     @Override
     public List<Map<String, Object>> extract(InputStream source) throws ExtractionException {
         List<Map<String, Object>> data = new ArrayList<>();
         
         try (Workbook workbook = new XSSFWorkbook(source)) {
-            // Procesar primera hoja
-            Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
-            
-            if (headerRow == null) {
-                throw new ExtractionException("No header row found in Excel file");
+            int numberOfSheets = workbook.getNumberOfSheets();
+            log.info("El archivo tiene {} hojas", numberOfSheets);
+
+            // listamos todas las hojas disponibles
+            for(int i = 0; i < numberOfSheets; i++){
+                String sheetName = workbook.getSheetName(i);
+                log.info("Hoja {}: '{}'", i, sheetName);
             }
-            
-            // Obtener headers
-            List<String> headers = new ArrayList<>();
-            for (Cell cell : headerRow) {
-                headers.add(getCellValueAsString(cell));
+
+            // procesamos las hojas de Deudor
+            Sheet sheetDeudor = workbook.getSheet(SHEET_DEUDOR);
+            if(sheetDeudor != null) {
+                log.info("Procesando hoja de DEUDOR: '{}'", SHEET_DEUDOR);
+                List<Map<String, Object>> deudorData = processSheet(sheetDeudor, "DEUDOR");
+
+                data.addAll(deudorData);
+                log.info("Extraídos {} registros de la hoja DEUDOR", deudorData.size());
+            } else {
+                log.warn("No se encontró la hoja '{}'", SHEET_DEUDOR);
+                
+                // Fallback: usamos la primera hoja
+                Sheet firstSheet = workbook.getSheetAt(0);
+                log.info("Usando primera hoja como alternativa: '{}'", workbook.getSheetName(0));
+                List<Map<String, Object>> firstSheetData = processSheet(firstSheet, "DEUDOR");
+                data.addAll(firstSheetData);
             }
-            
-            log.info("Headers encontrados: {}", headers);
-            
-            // Configurar el evaluador de fórmulas para ignorar referencias externas
-            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            
-            // Procesar filas de datos
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-                
-                Map<String, Object> rowData = new HashMap<>();
-                boolean hasData = false;
-                
-                for (int j = 0; j < headers.size(); j++) {
-                    Cell cell = row.getCell(j, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                    Object value = getCellValueSafely(cell, evaluator);
-                    
-                    if (value != null && !value.toString().isEmpty()) {
-                        hasData = true;
-                    }
-                    rowData.put(headers.get(j), value);
-                }
-                
-                if (hasData) {
-                    data.add(rowData);
-                }
+
+            // Procesar hoja de Acreedor
+            Sheet sheetAcreedor = workbook.getSheet(SHEET_ACREEDOR);
+            if (sheetAcreedor != null) {
+                log.info("Procesando hoja de ACREEDOR: '{}'", SHEET_ACREEDOR);
+                List<Map<String, Object>> acreedorData = processSheet(sheetAcreedor, "ACREEDOR");
+
+                data.addAll(acreedorData);
+                log.info("Extraídos {} registros de la hoja ACREEDOR", acreedorData.size());
+            } else {
+
+                log.warn("No se encontró la hoja '{}'", SHEET_ACREEDOR);
             }
-            
-            log.info("Extracted {} records from Excel", data.size());
+
+            log.info("Total de registros extraídos: {} de {} hojas procesadas", data.size(), (sheetDeudor != null ? 1 : 0) + (sheetAcreedor != null ? 1 : 0));
             
         } catch (Exception e) {
             log.error("Error extracting Excel data", e);
             throw new ExtractionException("Failed to extract data from Excel", e);
+        }
+        
+        return data;
+    }
+
+    /**
+     *  Procesamos la hoja especifica de Excel
+     * @param sheet: Hoja a procesar
+     * @param tipoEntidad: tipo de la entidad (DEUDOR, ACREEDOR)
+     * @return: Retornamos una lista con los datos de la hoja
+    */
+    private List<Map<String, Object>> processSheet(Sheet sheet, String tipoEntidad){
+        List<Map<String, Object>> data = new ArrayList<>();
+
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            log.warn("Hoja '{}' no tiene fila de encabezados", tipoEntidad);
+            return data;
+        }
+        
+        // Obtener headers
+        List<String> headers = new ArrayList<>();
+        for (Cell cell : headerRow) {
+            headers.add(getCellValueAsString(cell));
+        }
+        
+        log.info("Headers encontrados en hoja {}: {}", tipoEntidad, headers);
+        
+        // Evaluador de fórmulas
+        FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
+        
+        // Procesar filas de datos
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            
+            Map<String, Object> rowData = new HashMap<>();
+            boolean hasData = false;
+            
+            for (int j = 0; j < headers.size(); j++) {
+                Cell cell = row.getCell(j, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                Object value = getCellValueSafely(cell, evaluator);
+                
+                if (value != null && !value.toString().isEmpty()) {
+                    hasData = true;
+                }
+                rowData.put(headers.get(j), value);
+            }
+            
+            // Agregar tipo de entidad para identificar el origen
+            rowData.put("_tipoEntidad", tipoEntidad);
+            
+            if (hasData) {
+                data.add(rowData);
+            }
         }
         
         return data;
@@ -109,7 +166,9 @@ public class ExcelDataExtractor implements DataExtractor {
                     
                 case NUMERIC:
                     if (DateUtil.isCellDateFormatted(cell)) {
-                        return cell.getDateCellValue();
+                        Date date = cell.getDateCellValue();
+                        log.debug("Fecha encontrada (NUMERIC): {}", date);
+                        return date;
                     }
                     return cell.getNumericCellValue();
                     
@@ -117,6 +176,24 @@ public class ExcelDataExtractor implements DataExtractor {
                     return cell.getBooleanCellValue();
                     
                 case FORMULA:
+                    // intentamos obtener el valor de cached
+                    try {
+                        if(cell.getCachedFormulaResultType() == CellType.NUMERIC){
+                            if(DateUtil.isCellDateFormatted(cell)){
+                                Date date = cell.getDateCellValue();
+                                log.debug("Fecha encontrada (FORMULA cached): {}", date);
+
+                                return date;
+                            }
+                            return cell.getNumericCellValue();
+                        }
+                        if(cell.getCachedFormulaResultType() == CellType.STRING){
+                            return cell.getStringCellValue();
+                        }
+                    } catch (Exception e) {
+                        log.debug("No cached value for formula");
+                    }
+
                     // Intentar evaluar la fórmula
                     try {
                         CellValue cellValue = evaluator.evaluate(cell);
@@ -124,6 +201,9 @@ public class ExcelDataExtractor implements DataExtractor {
                             case STRING:
                                 return cellValue.getStringValue();
                             case NUMERIC:
+                                if(DateUtil.isCellDateFormatted(cell)){
+                                    return cell.getDateCellValue();
+                                }
                                 return cellValue.getNumberValue();
                             case BOOLEAN:
                                 return cellValue.getBooleanValue();
@@ -134,8 +214,8 @@ public class ExcelDataExtractor implements DataExtractor {
                     } catch (Exception e) {
                         // Si hay error evaluando la fórmula (como referencia externa), retornar null
                         log.debug("Could not evaluate formula: {} - {}", cell.getCellFormula(), e.getMessage());
-                        return null;
                     }
+                    return null;
                     
                 default:
                     return null;

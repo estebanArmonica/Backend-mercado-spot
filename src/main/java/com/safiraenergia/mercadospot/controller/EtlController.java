@@ -3,6 +3,7 @@ package com.safiraenergia.mercadospot.controller;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,13 +62,17 @@ public class EtlController {
         
         log.info("Recibida solicitud de carga ETL de usuario: {}", principal.getName());
 
-        CompletableFuture<ETLResultDTO> future = etlProcessorService.processExcelFile(file, principal.getName());
+        // Generamos el jobId antes de poder realizar el proceso de ETL
+        String jobId = UUID.randomUUID().toString(); // generamos un jobId de Sring de forma random para cada Job de trabajo
+
+        CompletableFuture<ETLResultDTO> future = etlProcessorService.processExcelFile(file, principal.getName(), jobId);
 
         System.out.println(future);
         
         Map<String, String> response = new HashMap<>();
         response.put("message", "Archivo recibido. Procesamiento iniciado");
         response.put("status", "PROCESSING");
+        response.put("jobId", jobId);
 
         return ResponseEntity.accepted().body(response);
     }

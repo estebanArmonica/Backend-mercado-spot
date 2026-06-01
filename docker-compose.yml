@@ -13,10 +13,13 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION=${JWT_EXPIRATION}
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+PrintGCDetails -Xloggc:logs/gc.log
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./backups:/app/backups
+    mem_limit: 4g
+    mem_reservation: 2g
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
