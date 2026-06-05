@@ -7,6 +7,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -33,6 +34,11 @@ public class DataTransformer {
     // constante para detectar fórmulas de Excel
     private static final Pattern EXCEL_FORMULA_PATTERN = Pattern.compile("^_xlfn\\.|^=.*$|^\\[.*\\].*$");
     private static final Pattern RUT_PATTERN = Pattern.compile("^\\d{1,8}-[\\dkK]$");
+    private static final Set<String> INVALID_DATE_VALUES = Set.of(
+        "S/I", "N/A", "SIN INFORMACION", "SIN INFO", 
+        "NO APLICA", "NA", "---", "___", "NULL", 
+        "VACIO", "EMPTY", "S/F"
+    );
 
     // mapeo de código de estado a estados reales
     private static final Map<String, String> CODIGO_ESTADO_MAP = new HashMap<>();
@@ -104,9 +110,17 @@ public class DataTransformer {
         Date fechaPago = convertToDate(fechaPagoObj);
 
         // validacion de datos en fecha emision
-        if(fechaEmision == null && fechaEmisionObj != null) {
-            log.warn("Row {}: No se pudo convertir fechaEmision: '{}' (tipo: {})", rowIndex, fechaEmisionObj, fechaEmisionObj.getClass().getSimpleName());
-            etlLogger.logWarning(jobId, "Row " + rowIndex + "No se pudo convertir fechaEmision: " + fechaEmisionObj);
+        if (fechaEmision == null && fechaEmisionObj != null) {
+            String valorStr = fechaEmisionObj.toString();
+            // No mostrar warning para valores especiales comunes
+            if (!valorStr.equalsIgnoreCase("S/I") && 
+                !valorStr.equalsIgnoreCase("N/A") && 
+                !valorStr.equalsIgnoreCase("SIN INFORMACION")) {
+                log.warn("Row {}: No se pudo convertir fechaEmision: '{}' (tipo: {})", 
+                    rowIndex, valorStr, fechaEmisionObj.getClass().getSimpleName());
+            } else {
+                log.debug("Row {}: fechaEmision tiene valor especial: '{}'", rowIndex, valorStr);
+            }
         } else if (fechaEmision != null) {
             log.debug("Row {}: fechaEmision convertida a: {}", rowIndex, fechaEmision);
         }
@@ -149,6 +163,12 @@ public class DataTransformer {
             .estadoOriginal(estadoLimpio)  // Guardar el valor original
             .tipoEntidad(tipoEntidad)
             .build();
+    }
+
+    private boolean isInvalidDateValue(String value) {
+        if(value == null) return true;
+        String uppeValue = value.trim().toUpperCase();
+        return INVALID_DATE_VALUES.contains(uppeValue);
     }
 
     /**
@@ -323,23 +343,73 @@ public class DataTransformer {
             if(utilDate != null) {
                 return new Date(utilDate.getTime());
             }
+            return null;
         }
 
         // si es un String
         if(value instanceof String){
-            return parseDate((String) value);
+            String dateStr = (String) value;
+
+            // verificamos valores especiales
+            String upperDateStr = dateStr.trim().toUpperCase();
+
+            if(upperDateStr.equals("S/I")      || upperDateStr.equals("N/A")       || upperDateStr.equals("SIN INFORMACION") ||
+               upperDateStr.equals("SIN INFO") || upperDateStr.equals("NO APLICA") || upperDateStr.equals("NA") ||
+               upperDateStr.equals("---")      || upperDateStr.equals("___")) {
+                    log.debug("Valor especial detectado en fecha: '{}', retornando null", dateStr);
+                return null;
+            }
+
+            return parseDate(dateStr);
         }
 
         return null;
     }
 
     private Date parseDate(String dateStr) {
-        if(dateStr == null || dateStr.trim().isEmpty()) return null;
+        if(dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+
+        // limpiamos la cadena
         dateStr = dateStr.trim();
         
+        // manejamos fechas especiales con valores NAN, NaN, S/I
+        String upperDateStr = dateStr.toUpperCase();
+
+        // realizamos una condicion para fechas con formatos espciales
+        if(upperDateStr.equals("S/I") || upperDateStr.equals("N/A") || upperDateStr.equals("SIN INFORMACION") ||
+           upperDateStr.equals("SIN INFO") || upperDateStr.equals("NO APLICA") || upperDateStr.equals("NA") ||
+           upperDateStr.equals("---") || upperDateStr.equals("___")) {
+            log.debug("Valor no válido para fecha: '{}', retornamos null", dateStr);
+            return null;
+        }
+
+        // si contiene formulas de excel, retorna null
+        if (EXCEL_FORMULA_PATTERN.matcher(dateStr).find()) {
+            log.debug("Date field contains Excel formula: {}", dateStr);
+            return null;
+        }
+
+        // verificamos si es un número (fechas de Excel como número)
+        if (dateStr.matches("^\\d+(\\.\\d+)?$")) {
+            try {
+                double excelDate = Double.parseDouble(dateStr);
+                java.util.Date utilDate = DateUtil.getJavaDate(excelDate);
+                if(utilDate != null){
+                    return new Date(utilDate.getTime());
+                }
+            } catch (NumberFormatException e) {
+                // no es un número válido
+                log.error("Number no valid: {}", e);
+            }
+        }
+
+        // realizamos una lista de fechas soportadas
         String[] dateFormats = {
             "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "yyyy/MM/dd", "dd.MM.yyyy",
-            "EEE MMM dd HH:mm:ss zzz yyyy", "EEE MMM dd yyyy", "MM/dd/yyyy"
+            "EEE MMM dd HH:mm:ss zzz yyyy", "EEE MMM dd yyyy", "MM/dd/yyyy",
+            "dd-MMM-yyyy", "yyyyMMdd", "ddMMyyyy"
         };
 
         for(String format: dateFormats){
@@ -352,6 +422,8 @@ public class DataTransformer {
                 // continuar
             }
         }
+
+        log.debug("Cloud not parse date: {}", dateStr);
         return null;
     }
 }
