@@ -7,11 +7,12 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("api/v1/factura")
 @Tag(name = "Factura Controller", description = "Endpoints para gestión de Facturas")
-@CrossOrigin(origins = "*", methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.PATCH, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:4200/", methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.PATCH, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
 public class FacturaController {
 
     private final IFacturaService facturaService;
@@ -49,17 +50,18 @@ public class FacturaController {
         this.facturaService = facturaService;
     }
     
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-all")
     @Operation(summary = "Obtener todas las facturas (paginado)")
-    public ResponseEntity<Page<FacturaResponseDTO>> getAllFacturas(@PageableDefault(size = 20, sort = "id") Pageable pageable) {
-        log.info("Obteniendo todas las facturas - página: {}, tamaño: {}", pageable.getPageNumber(), pageable.getPageSize());
+    public ResponseEntity<PagedModel<FacturaResponseDTO>> getAllFacturas(@PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        log.info("Obteniendo todas las facturas - página: {}, tamaño: {}", pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
 
-        return ResponseEntity.ok(facturaService.getAllFacturas(pageable));
+        Page<FacturaResponseDTO> page = facturaService.getAllFacturas(pageable);
+        PagedModel<FacturaResponseDTO> pagedModel = new PagedModel<>(page);
+
+        return ResponseEntity.ok(pagedModel);
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-factura/{id}")
     @Operation(summary = "Obtener factura por ID")
     public ResponseEntity<FacturaResponseDTO> getFacturaById(@PathVariable Long id) {
         log.info("Obteniendo factura con ID: {}", id);
@@ -68,7 +70,6 @@ public class FacturaController {
     }
 
     @GetMapping("/entidad/{rut}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener facturas por RUT de entidad")
     public ResponseEntity<List<FacturaResponseDTO>> getFacturasByEntidad(@PathVariable String rut) {
         log.info("Obteniendo facturas por entidad RUT: {}", rut);
@@ -76,7 +77,6 @@ public class FacturaController {
     }
 
     @GetMapping("/periodo")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener facturas por año y mes")
     public ResponseEntity<List<FacturaResponseDTO>> getFacturasByPeriodo(
             @RequestParam int year,
@@ -86,9 +86,8 @@ public class FacturaController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar facturas con filtros")
-    public ResponseEntity<Page<FacturaResponseDTO>> searchFacturas(
+    public ResponseEntity<PagedModel<FacturaResponseDTO>> searchFacturas(
             @RequestParam(required = false) Long folio,
             @RequestParam(required = false) String rutEntidad,
             @RequestParam(required = false) Integer year,
@@ -111,11 +110,14 @@ public class FacturaController {
             .build();
         
         log.info("Buscando facturas con filtros: {}", filter);
-        return ResponseEntity.ok(facturaService.filterFacturas(filter, pageable));
+
+        Page<FacturaResponseDTO> page = facturaService.filterFacturas(filter, pageable);
+        PagedModel<FacturaResponseDTO> pagedModel = new PagedModel<>(page);
+
+        return ResponseEntity.ok(pagedModel);
     }
 
     @GetMapping("/estadisticas")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VIEWER')")
     @Operation(summary = "Obtener estadísticas de facturas")
     public ResponseEntity<Map<String, Object>> getEstadisticas(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date fechaInicio,
@@ -129,16 +131,14 @@ public class FacturaController {
         return ResponseEntity.ok(estadisticas);
     }
 
-    @PostMapping
-    @Operation(summary = "Crear factura manualmente")
+    @PostMapping("/created-factura")
     public ResponseEntity<FacturaResponseDTO> createFactura(@Valid @RequestBody FacturaDTO facturaDTO) {
         log.info("Creando factura con folio: {}", facturaDTO.getFolio());
         FacturaResponseDTO created = facturaService.createFactura(facturaDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Actualizar factura")
+    @PutMapping("/update-factura/{id}")
     public ResponseEntity<FacturaResponseDTO> updateFactura(
             @PathVariable Long id,
             @Valid @RequestBody FacturaDTO facturaDTO) {
@@ -146,8 +146,7 @@ public class FacturaController {
         return ResponseEntity.ok(facturaService.updateFactura(id, facturaDTO));
     }
 
-    @PatchMapping("/{id}/estado")
-    @Operation(summary = "Actualizar estado de factura")
+    @PatchMapping("/updated-patch/{id}/estado")
     public ResponseEntity<FacturaResponseDTO> updateEstadoFactura(
             @PathVariable Long id,
             @RequestParam String estado) {
@@ -155,8 +154,7 @@ public class FacturaController {
         return ResponseEntity.ok(facturaService.updateEstadoFactura(id, estado));
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar factura")
+    @DeleteMapping("/delete-factura/{id}")
     public ResponseEntity<Void> deleteFactura(@PathVariable Long id) {
         log.info("Eliminando factura con ID: {}", id);
         facturaService.deleteFactura(id);

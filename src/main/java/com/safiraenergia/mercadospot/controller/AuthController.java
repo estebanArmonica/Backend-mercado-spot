@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
-@CrossOrigin(origins = "*", maxAge = 3600, methods = {RequestMethod.POST})
+@CrossOrigin(origins = "http://localhost:4200/", maxAge = 3600, methods = {RequestMethod.POST})
 @Tag(name = "Authentication", description = "Endpoints for authentication and user management")
 public class AuthController {
     private final IAuthService authService;

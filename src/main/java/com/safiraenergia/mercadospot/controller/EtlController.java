@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("api/v1/etl")
 @Tag(name = "ETL Controller", description = "Endpoints para procesamiento de archivos excel")
-@CrossOrigin(origins = "*", methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.POST}, maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:4200/", methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.POST}, maxAge = 3600)
 public class EtlController {
 
     private final IETLProcessorService etlProcessorService;

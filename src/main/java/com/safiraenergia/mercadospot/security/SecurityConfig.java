@@ -98,6 +98,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/etl/upload").permitAll()
                     .requestMatchers("/api/v1/etl/progress/**").permitAll()
                     .requestMatchers("/api/v1/etl/cancel/**").permitAll()
+                    .requestMatchers("/api/v1/factura/**").permitAll()
                     
                     // All other requests need authentication
                     .anyRequest().authenticated()
