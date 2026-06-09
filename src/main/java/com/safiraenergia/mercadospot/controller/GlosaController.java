@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("api/v1/glosa")
-@CrossOrigin(origins = "*", maxAge = 3600, methods = {RequestMethod.DELETE, RequestMethod.POST, RequestMethod.GET, RequestMethod.PUT})
+@CrossOrigin(origins = "http://localhost:4200/", maxAge = 3600, methods = {RequestMethod.DELETE, RequestMethod.POST, RequestMethod.GET, RequestMethod.PUT})
 @Tag(name = "Glosas", description = "Endpoints para gestión de glosas")
 public class GlosaController {
     
@@ -41,8 +40,7 @@ public class GlosaController {
         this.glosaService = glosaService;
     }
 
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-all")
     @Operation(summary = "Obtener todas las glosas")
     public ResponseEntity<List<GlosaDTO>> getAllGlosas() {
         log.info("Obteniendo todas las glosas");
@@ -50,8 +48,7 @@ public class GlosaController {
         return ResponseEntity.ok(glosas.stream().map(this::convertToDTO).collect(Collectors.toList()));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-glosa/{id}")
     @Operation(summary = "Obtener glosa por ID")
     public ResponseEntity<GlosaDTO> getGlosaById(@PathVariable Long id) {
         log.info("Obteniendo glosa con ID: {}", id);
@@ -60,7 +57,6 @@ public class GlosaController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar glosas por descripción")
     public ResponseEntity<List<GlosaDTO>> searchGlosas(@RequestParam String keyword) {
         log.info("Buscando glosas por: {}", keyword);
@@ -68,7 +64,7 @@ public class GlosaController {
         return ResponseEntity.ok(glosas.stream().map(this::convertToDTO).collect(Collectors.toList()));
     }
 
-    @PostMapping
+    @PostMapping("/create-new-glosa")
     @Operation(summary = "Crear nueva glosa")
     public ResponseEntity<GlosaDTO> createGlosa(@RequestBody GlosaDTO glosaDTO) {
         log.info("Creando glosa: {}", glosaDTO.getDescripcion());
@@ -81,7 +77,7 @@ public class GlosaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(saved));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/update-glosa/{id}")
     @Operation(summary = "Actualizar glosa")
     public ResponseEntity<GlosaDTO> updateGlosa(
             @PathVariable Long id,
@@ -96,7 +92,7 @@ public class GlosaController {
         return ResponseEntity.ok(convertToDTO(updated));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete-glosa/{id}")
     @Operation(summary = "Eliminar glosa")
     public ResponseEntity<Void> deleteGlosa(@PathVariable Long id) {
         log.info("Eliminando glosa con ID: {}", id);

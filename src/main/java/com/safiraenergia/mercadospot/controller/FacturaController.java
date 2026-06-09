@@ -29,9 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.dto.factura.FacturaFilterDTO;
 import com.safiraenergia.mercadospot.dto.factura.FacturaResponseDTO;
+import com.safiraenergia.mercadospot.models.Factura;
 import com.safiraenergia.mercadospot.services.factura.IFacturaService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("api/v1/factura")
-@Tag(name = "Factura Controller", description = "Endpoints para gestión de Facturas")
+@Tag(name = "Factura", description = "Endpoints para gestión de Facturas")
 @CrossOrigin(origins = "http://localhost:4200/", methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.PATCH, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
 public class FacturaController {
 
@@ -51,7 +56,25 @@ public class FacturaController {
     }
     
     @GetMapping("/list-all")
-    @Operation(summary = "Obtener todas las facturas (paginado)")
+    @Operation(
+        summary = "Obtener todas las facturas (paginado)",
+        description = "Obtenemos todas las facturas de forma paginada en roden desc",
+        tags = {"Factura"},
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso.",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(type = "array", implementation = Factura.class)
+                )
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<PagedModel<FacturaResponseDTO>> getAllFacturas(@PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         log.info("Obteniendo todas las facturas - página: {}, tamaño: {}", pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
 
@@ -62,7 +85,33 @@ public class FacturaController {
     }
 
     @GetMapping("/list-factura/{id}")
-    @Operation(summary = "Obtener factura por ID")
+    @Operation(
+        summary = "Obtener factura por ID",
+        description = "Obtenemos una factura especifica por el ID",
+        tags = {"Factura"},
+        parameters = {
+            @Parameter(
+                name = "id",
+                description = "El campo ID es requerido para realizar la busqueda de una factura",
+                example = "1",
+                required = true
+            )
+        },
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso.",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(type = "array", implementation = Factura.class)
+                )
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<FacturaResponseDTO> getFacturaById(@PathVariable Long id) {
         log.info("Obteniendo factura con ID: {}", id);
 
@@ -70,14 +119,58 @@ public class FacturaController {
     }
 
     @GetMapping("/entidad/{rut}")
-    @Operation(summary = "Obtener facturas por RUT de entidad")
+    @Operation(
+        summary = "Obtener facturas por RUT de entidad",
+        description = "Obtenemos una lista de las facturas a travez de su rut asociado",
+        tags = {"Factura"},
+        parameters = {
+            @Parameter(
+                name = "rut",
+                description = "El campo rut es requerido para realizar la busqueda de facturas",
+                example = "11.111.111-1",
+                required = true
+            )
+        },
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso.",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(type = "array", implementation = Factura.class)
+                )
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<List<FacturaResponseDTO>> getFacturasByEntidad(@PathVariable String rut) {
         log.info("Obteniendo facturas por entidad RUT: {}", rut);
         return ResponseEntity.ok(facturaService.getFacturasByEntidad(rut));
     }
 
     @GetMapping("/periodo")
-    @Operation(summary = "Obtener facturas por año y mes")
+    @Operation(
+        summary = "Obtener facturas por año y mes",
+        description = "Obtenemos una lista de las facturas por año y mes",
+        tags = {"Factura"},
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso.",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(type = "array", implementation = Factura.class)
+                )
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<List<FacturaResponseDTO>> getFacturasByPeriodo(
             @RequestParam int year,
             @RequestParam int month) {
@@ -86,7 +179,71 @@ public class FacturaController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Buscar facturas con filtros")
+    @Operation(
+        summary = "Buscar facturas con filtros",
+        description = "Realizamos una busqueda de una factura a travéz de diferentes filtros",
+        tags = {"Factura"},
+        parameters = {
+            @Parameter(
+                name = "folio",
+                description = "El campo folio es requerido para realizar la busqueda de facturas",
+                example = "1001",
+                required = false
+            ),
+            @Parameter(
+                name = "rutEntidad",
+                description = "El campo rut es requerido para realizar la busqueda de facturas",
+                example = "11.111.111-1",
+                required = false
+            ),
+            @Parameter(
+                name = "year",
+                description = "El campo año es requerido para realizar la busqueda de facturas",
+                example = "2024",
+                required = false
+            ),
+            @Parameter(
+                name = "month",
+                description = "El campo mes es requerido para realizar la busqueda de facturas",
+                example = "01",
+                required = false
+            ),
+            @Parameter(
+                name = "fechaDesde",
+                description = "El campo fecha_desde es requerido para realizar la busqueda de facturas",
+                example = "2024/01-01",
+                required = false
+            ),
+            @Parameter(
+                name = "fechaHasta",
+                description = "El campo fecha_hasta es requerido para realizar la busqueda de facturas",
+                example = "2026/01-01",
+                required = false
+            ),
+            @Parameter(
+                name = "montoMin",
+                description = "El campo monto_min es requerido para realizar la busqueda de facturas",
+                example = "5",
+                required = false
+            ),
+            @Parameter(
+                name = "montoMax",
+                description = "El campo monto_max es requerido para realizar la busqueda de facturas",
+                example = "30",
+                required = false
+            ),
+        },
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso."
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<PagedModel<FacturaResponseDTO>> searchFacturas(
             @RequestParam(required = false) Long folio,
             @RequestParam(required = false) String rutEntidad,
@@ -118,7 +275,35 @@ public class FacturaController {
     }
 
     @GetMapping("/estadisticas")
-    @Operation(summary = "Obtener estadísticas de facturas")
+    @Operation(
+        summary = "Obtener estadísticas de facturas",
+        description = "Obtenemos una estadistica de las facturas por fecha de inicio y fin",
+        tags = {"Factura"},
+        parameters = {
+            @Parameter(
+                name = "fechaInicio",
+                description = "El campo fecha_inicio es requerido para realizar la busqueda de facturas",
+                example = "2024/01-01",
+                required = false
+            ),
+            @Parameter(
+                name = "fechaFin",
+                description = "El campo fecha_fin es requerido para realizar la busqueda de facturas",
+                example = "2026/01-01",
+                required = false
+            )
+        },
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Listado de las facturas mostrado exitoso."
+            ),
+            @ApiResponse(
+                responseCode = "204",
+                description = "No hay facturas para mostrar."
+            )
+        }
+    )
     public ResponseEntity<Map<String, Object>> getEstadisticas(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date fechaInicio,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date fechaFin) {

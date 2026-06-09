@@ -18,6 +18,10 @@ import com.safiraenergia.mercadospot.dto.auth.LoginResponse;
 import com.safiraenergia.mercadospot.services.auth.IAuthService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
@@ -37,7 +41,29 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate used and return JWT Token")
+    @Operation(
+        summary = "Authenticate used and return JWT Token",
+        description = "Autenticación que retorna un token para un usuario",
+        tags = {"Authentication"},
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Autenticación requiere de un username y password",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = LoginResponse.class)
+            )
+        ),
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Autenticación existosa",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = LoginResponse.class)
+                )
+            )
+        }
+    )
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         log.info("Login request for user: {}", loginRequest.getUsername());
         LoginResponse response = authService.login(loginRequest);
@@ -54,7 +80,29 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Logout user")
+    @Operation(
+        summary = "Logout user",
+        description = "Autenticación que retorna un token para un usuario",
+        tags = {"Authentication"},
+        parameters = {
+            @Parameter(
+                name = "token",
+                description = "El token es requerido para cerrar la sesión de usuario",
+                example = "AJBKSDFBEWN~SSSSSS",
+                required = true
+            )
+        },
+        responses = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "Sesión cerrada",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = LoginResponse.class)
+                )
+            )
+        }
+    )
     public ResponseEntity<Map<String, String>> logout(@RequestHeader("Authorization") String token) {
         log.info("Logout request");
         

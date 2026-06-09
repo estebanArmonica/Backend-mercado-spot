@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,8 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/estados")
-@CrossOrigin(origins = "*", maxAge = 3600, methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
+@RequestMapping("/api/v1/estados")
+@CrossOrigin(origins = "http://localhost:4200/", maxAge = 3600, methods = {RequestMethod.DELETE, RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
 @Tag(name = "Estados", description = "Endpoints para gestión de estados de factura")
 public class EstadoController {
     
@@ -40,8 +39,7 @@ public class EstadoController {
         this.estadoService = estadoService;
     }
 
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-all")
     @Operation(summary = "Obtener todos los estados")
     public ResponseEntity<List<EstadoDTO>> getAllEstados() {
         log.info("Obteniendo todos los estados");
@@ -49,8 +47,7 @@ public class EstadoController {
         return ResponseEntity.ok(estados.stream().map(this::convertToDTO).collect(Collectors.toList()));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-estado/{id}")
     @Operation(summary = "Obtener estado por ID")
     public ResponseEntity<EstadoDTO> getEstadoById(@PathVariable Long id) {
         log.info("Obteniendo estado con ID: {}", id);
@@ -59,7 +56,6 @@ public class EstadoController {
     }
 
     @GetMapping("/descripcion/{descripcion}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener estado por descripción")
     public ResponseEntity<EstadoDTO> getEstadoByDescripcion(@PathVariable String descripcion) {
         log.info("Obteniendo estado por descripción: {}", descripcion);
@@ -69,7 +65,7 @@ public class EstadoController {
             .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping
+    @PostMapping("/create-new-estado")
     @Operation(summary = "Crear nuevo estado")
     public ResponseEntity<EstadoDTO> createEstado(@RequestBody EstadoDTO estadoDTO) {
         log.info("Creando estado: {}", estadoDTO.getDescripcion());
@@ -82,7 +78,7 @@ public class EstadoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(saved));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/update-estado/{id}")
     @Operation(summary = "Actualizar estado")
     public ResponseEntity<EstadoDTO> updateEstado(
             @PathVariable Long id,
@@ -97,7 +93,7 @@ public class EstadoController {
         return ResponseEntity.ok(convertToDTO(updated));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete-estado/{id}")
     @Operation(summary = "Eliminar estado")
     public ResponseEntity<Void> deleteEstado(@PathVariable Long id) {
         log.info("Eliminando estado con ID: {}", id);

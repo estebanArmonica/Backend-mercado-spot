@@ -3,7 +3,6 @@ package com.safiraenergia.mercadospot.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +29,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("api/v1/entidad")
 @Tag(name = "Entidad Controller", description = "Endpoints para gestión de entidades (Deudor y Acreedor)")
-@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.DELETE, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:4200/", methods = {RequestMethod.GET, RequestMethod.DELETE, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
 public class EntidadController {
     
     private final IEntidadService entidadService;
@@ -40,8 +39,7 @@ public class EntidadController {
         this.entidadService = entidadService;
     }
 
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-all")
     @Operation(summary = "Obtener todas las entidades")
     public ResponseEntity<List<EntidadDTO>> getAllEntidades() {
         log.info("Obteniendo todas las entidades");
@@ -51,8 +49,7 @@ public class EntidadController {
         return ResponseEntity.ok(entidades.stream().map(this::converToDTO).collect(Collectors.toList()));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/list-entidad/{id}")
     @Operation(summary = "Obtener entidad por ID")
     public ResponseEntity<EntidadDTO> getEntidadById(@PathVariable Long id) {
         log.info("Obteniendo entidad con ID: {}", id);
@@ -61,7 +58,6 @@ public class EntidadController {
     }
 
     @GetMapping("/rut/{rut}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener entidad por RUT")
     public ResponseEntity<EntidadDTO> getEntidadByRut(@PathVariable String rut) {
         log.info("Obteniendo entidad por RUT: {}", rut);
@@ -72,7 +68,6 @@ public class EntidadController {
     }
 
     @GetMapping("/deudores")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener todas las entidades deudoras")
     public ResponseEntity<List<EntidadDTO>> getDeudores() {
         log.info("Obteniendo entidades deudoras");
@@ -86,7 +81,6 @@ public class EntidadController {
     }
 
     @GetMapping("/acreedores")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener todas las entidades acreedoras")
     public ResponseEntity<List<EntidadDTO>> getAcreedores(){
         log.info("Obteniendo entidades acreedoras");
@@ -100,7 +94,7 @@ public class EntidadController {
             .collect(Collectors.toList()));
     }
 
-    @PostMapping
+    @PostMapping("/create-new-entidad")
     @Operation(summary = "Crear nueva entidad")
     public ResponseEntity<EntidadDTO> createEntidad(@RequestBody EntidadDTO entidadDTO) {
         log.info("Creando entidad con RUT: {}", entidadDTO.getRutEntidad());
@@ -114,7 +108,7 @@ public class EntidadController {
         return ResponseEntity.status(HttpStatus.CREATED).body(converToDTO(saved));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/update-entidad/{id}")
     @Operation(summary = "Actualizar entidad")
     public ResponseEntity<EntidadDTO> updateEntidad(@PathVariable Long id, @RequestBody EntidadDTO entidadDTO) {
         log.info("Actualizando entidad con ID: {}", id);
@@ -128,7 +122,7 @@ public class EntidadController {
         return ResponseEntity.ok(converToDTO(updated));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete-entidad/{id}")
     @Operation(summary = "Eliminar entidad")
     public ResponseEntity<Void> deleteEntidad(@PathVariable Long id) {
         log.info("Eliminando entidad con ID: {}", id);
