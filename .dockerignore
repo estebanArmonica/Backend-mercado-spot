@@ -8,8 +8,6 @@ backups/
 target/
 *.log
 *.tmp
-.env
-.env.local
 .idea/
 .vscode/
 .mvn/

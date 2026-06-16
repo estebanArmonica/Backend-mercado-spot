@@ -1,0 +1,42 @@
+# cloudbuild.yaml
+steps:
+  # Realizamos la compilación de con Maven
+  - name: 'maven:3.8-openjdk-17'
+    entrypoint: 'mvn'
+    args: ['clean', 'package', '-DskipTests']
+
+  # Construimos la imagen de Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/etl-backend', '.']
+
+  # Subimos la imagen y registramos el container
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/etl-backend']
+
+  # Despleguamos en Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'etl-backend-mercado-spot'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/etl-backend'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'SPRING_DATASOURCE_URL=${_SPRING_DATASOURCE_URL},SPRING_DATASOURCE_USERNAME=${_SPRING_DATASOURCE_USERNAME},SPRING_DATASOURCE_PASSWORD=${_SPRING_DATASOURCE_PASSWORD},JWT_SECRET=${_JWT_SECRET},JWT_EXPIRATION=${_JWT_EXPIRATION}'
+
+# Variables de entorno (se configuran en Cloud Build)
+substitutions:
+  _SPRING_DATASOURCE_URL: jdbc:postgresql://...
+  _SPRING_DATASOURCE_USERNAME: tu_usuario
+  _SPRING_DATASOURCE_PASSWORD: tu_contraseña
+  _JWT_SECRET: tu_secreto_jwt
+  _JWT_EXPIRATION: '86400000'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -5,40 +5,58 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import com.safiraenergia.mercadospot.repository.IUsuarioRepository;
+import com.safiraenergia.mercadospot.security.CustomUserDetailsService;
+import com.safiraenergia.mercadospot.security.JwtGenerador;
+import com.safiraenergia.mercadospot.security.SecurityConstants;
 
 @TestConfiguration
 public class TestSecurityConfig {
-    
+
+    @MockitoBean
+    private CustomUserDetailsService customUserDetailsService;
+
     @Bean
     @Primary
-    public UserDetailsService userDetailsService() {
-        UserDetails admin = User.builder()
-            .username("admin")
-            .password("{noop}admin123") // {noop} para texto plano en pruebas
-            .roles("ADMIN", "ETL_OPERATOR")
-            .build();
-        
-        UserDetails user = User.builder()
-            .username("user")
-            .password("{noop}user123")
-            .roles("USER")
-            .build();
-        
-        return new InMemoryUserDetailsManager(admin, user);
+    public SecurityConstants testSecurityConstants() {
+        SecurityConstants constants = new SecurityConstants();
+
+        return constants;
     }
 
     @Bean
+    @Primary
+    public JwtGenerador testJwtGenerador(SecurityConstants securityConstants) {
+        return new JwtGenerador(securityConstants); 
+    }
+
+    @Bean
+    @Primary
+    public UserDetailsService userDetailsService() {
+        return customUserDetailsService;
+    }
+
+    @Bean
+    @Primary
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    @Primary
     public SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll()
             );
+
         return http.build();
     }
 }
