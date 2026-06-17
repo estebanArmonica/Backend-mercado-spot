@@ -3,14 +3,12 @@ package com.safiraenergia.mercadospot.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.safiraenergia.mercadospot.dto.entidad.EntidadDTO;
@@ -29,7 +27,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("api/v1/entidad")
 @Tag(name = "Entidad Controller", description = "Endpoints para gestión de entidades (Deudor y Acreedor)")
-@CrossOrigin(origins = "http://localhost:4200/", methods = {RequestMethod.GET, RequestMethod.DELETE, RequestMethod.POST, RequestMethod.PUT}, maxAge = 3600)
 public class EntidadController {
     
     private final IEntidadService entidadService;

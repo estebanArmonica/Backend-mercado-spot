@@ -1,6 +1,11 @@
+version: '3.8'
+
 services:
   backend:
-    build: .
+    build: 
+      context: .
+      dockerfile: dockerfile.prod
+    image: etl-backend-mercado-spot:latest
     container_name: etl-backend-mercado-spot
     ports:
       - "8095:8095"
@@ -12,6 +17,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SUPERBASE_PASS}
       - JWT_SECRET=${JWT_FIRMA}
       - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - LOGGING_FILE_NAME=${LOGGING_FILE_NAME}
     env_file:
       - .env
     volumes:

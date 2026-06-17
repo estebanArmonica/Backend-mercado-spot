@@ -8,6 +8,8 @@ backups/
 target/
 *.log
 *.tmp
+.env
+.env.local
 .idea/
 .vscode/
 .mvn/
@@ -16,3 +18,5 @@ mvnw.cmd
 Dockerfile
 .dockerignore
 docker-compose.yml
+*.md
+*.iml

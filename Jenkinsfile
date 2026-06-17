@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         // Variables desde Jenkins (no las pongas en el código)
-        DOCKER_IMAGE = 'tu-usuario/etl-backend-mercado-spot'
+        DOCKER_IMAGE = 'armonica21/etl-backend-mercado-spot'
         PROJECT_ID = 'tu-proyecto-gcp'
         SERVICE_NAME = 'etl-backend-mercado-spot'
         REGION = 'us-central1'

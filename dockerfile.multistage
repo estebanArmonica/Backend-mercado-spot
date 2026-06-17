@@ -1,0 +1,33 @@
+# Primera etapa construir el build
+FROM maven:3.9-eclipse-temurin-17 AS build
+
+WORKDIR /app
+
+# copiamos solo el pom.xml primero para aprovechar el caché
+COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# copaimos el codigo del proyecto desde el src
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Segunda etapa, creacion del runtime
+FROM eclipse-temurin:17-jre-alpine
+RUN apk add --no-cache curl
+
+RUN addgroup -g 1000 appgroup && \
+    adduser -D -u 1000 -G appgroup appuser
+
+WORKDIR /app
+
+# copiamos el JAR desde la etapa del build
+COPY --from=build /app/target/*.jar app.jar
+
+# creamos los directorios
+RUN mkdir -p logs uploads backups && chown -R appuser:appgroup /app
+
+USER appuser
+EXPOSE 8095
+
+# Entrypoint con variables de entorno
+ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -jar app.jar --spring.profiles.active=${SPRING_PROFILES} --server.port=${PORT}" ]
