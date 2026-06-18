@@ -3,8 +3,14 @@ package com.safiraenergia.mercadospot.services.factura.impl;
 import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.dto.factura.FacturaFilterDTO;
 import com.safiraenergia.mercadospot.dto.factura.FacturaResponseDTO;
-import com.safiraenergia.mercadospot.models.*;
-import com.safiraenergia.mercadospot.repository.*;
+import com.safiraenergia.mercadospot.models.Factura;
+import com.safiraenergia.mercadospot.models.Entidad;
+import com.safiraenergia.mercadospot.models.Glosa;
+import com.safiraenergia.mercadospot.models.Periodo;
+import com.safiraenergia.mercadospot.repository.IFacturaRepository;
+import com.safiraenergia.mercadospot.repository.IPeriodoRepository;
+import com.safiraenergia.mercadospot.repository.IGlosaRepository;
+import com.safiraenergia.mercadospot.repository.IEntidadRepository;
 import com.safiraenergia.mercadospot.services.core.impl.GenericServiceImpl;
 import com.safiraenergia.mercadospot.services.factura.IFacturaService;
 import com.safiraenergia.mercadospot.specification.FacturaSpecification;
@@ -17,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -110,7 +117,10 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
     @Transactional(readOnly = true)
     public List<FacturaResponseDTO> getFacturasByPeriodo(int year, int month) {
         log.debug("Getting facturas by periodo: {}-{}", year, month);
-        return repository.findByPeriodoYearAndPeriodoMonth(year, month).stream()
+
+        List<Factura> facturas = repository.findByPeriodoYearAndPeriodoMonth(year, month);
+
+        return facturas.stream()
             .map(this::convertToResponseDTO)
             .collect(Collectors.toList());
     }
@@ -230,8 +240,16 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
             .glosa(glosa)
             .build();
     }
+
+    // método auxiliar para transformar date a string
+    private String formatDate(java.sql.Date date) {
+        if (date == null) return null;
+
+        return new SimpleDateFormat("yyyy-MM-dd").format(date);
+    }
     
     private FacturaResponseDTO convertToResponseDTO(Factura factura) {
+        // convertimos e Date de sql a LocalDate
         return FacturaResponseDTO.builder()
             .id(factura.getId())
             .folio((long) factura.getFolio())
@@ -243,7 +261,7 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
             .rutEntidad(factura.getEntidad().getRutEntidad())
             .nombreEntidad(factura.getEntidad().getNombre())
             .glosa(factura.getGlosa().getDescripcion())
-            .periodo(factura.getPeriodo().getMes())
+            .periodo(formatDate(factura.getPeriodo().getMes()))
             .build();
     }
     

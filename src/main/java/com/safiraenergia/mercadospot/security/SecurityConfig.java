@@ -131,12 +131,12 @@ public class SecurityConfig {
 
 
                     // permisos de admin y backuser en factura
-                    .requestMatchers("/api/v1/factura/list-all").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/list-factura/{id}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/entidad/{rut}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/periodo").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/search").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/estadisticas").hasAnyRole("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/list-all").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/list-factura/{id}").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/entidad/{rut}").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/periodo").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/search").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/estadisticas").hasAnyAuthority("ADMIN","BACKUSER")
                     .requestMatchers("/api/v1/factura/created-factura").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/factura/update-factura/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/factura/updated-patch/{id}/estado").hasAuthority("ADMIN")

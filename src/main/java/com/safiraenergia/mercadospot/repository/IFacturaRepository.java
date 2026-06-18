@@ -20,7 +20,11 @@ public interface IFacturaRepository extends JpaRepository<Factura, Long>, JpaSpe
     // consulta especifica por el rut de la entidad
     List<Factura> findByEntidadRutEntidad(String rutEntidad);
 
-    @Query("SELECT f FROM Factura f WHERE YEAR(f.periodo.mes) = :year AND MONTH(f.periodo.mes) = :month")
+    @Query(value = "SELECT f.* FROM factura f " +
+           "LEFT JOIN periodo p ON(f.periodo_id = p.id_periodo) " +
+           "WHERE EXTRACT(YEAR FROM p.mes) = :year AND EXTRACT(MONTH FROM p.mes) = :month",
+        nativeQuery = true
+    )
     List<Factura> findByPeriodoYearAndPeriodoMonth(@Param("year") int year, @Param("month") int month);
 
     // Método de estadistica

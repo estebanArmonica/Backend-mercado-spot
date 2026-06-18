@@ -15,7 +15,7 @@ import org.springframework.http.HttpHeaders;
 @OpenAPIDefinition(
         info = @Info(
                 title = "API Mercado Spot",
-                version = "1.0.0",
+                version = "1.0.1",
                 description = "Official API of Mercado Spot web endpoints",
                 contact = @Contact(
                         name = "Esteban Hernán Lobos Canales",
