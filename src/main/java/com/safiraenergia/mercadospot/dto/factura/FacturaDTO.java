@@ -1,6 +1,7 @@
 package com.safiraenergia.mercadospot.dto.factura;
 
 import java.sql.Date;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,4 +24,5 @@ public class FacturaDTO {
     private Date periodo;
     private String glosa, rutEntidad, nomEntidad;
     private String estado, tipoEntidad, estadoOriginal;
+    private Set<String> estados;
 }

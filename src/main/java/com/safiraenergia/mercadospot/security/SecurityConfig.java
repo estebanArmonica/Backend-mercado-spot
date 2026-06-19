@@ -104,11 +104,11 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/etl/cancel/{jobId}").hasAuthority("ADMIN")
 
                     // permisos de admin y backuser de entidad
-                    .requestMatchers("/api/v1/entidad/list-all").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/list-entidad/{id}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/rut/{rut}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/deudores").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/acreedores").hasAnyRole("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/list-all").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/list-entidad/{id}").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/rut/{rut}").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/deudores").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/acreedores").hasAnyAuthority("ADMIN","BACKUSER")
                     .requestMatchers("/api/v1/entidad/create-new-entidad").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/entidad/update-entidad/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/entidad/delete-entidad/{id}").hasAuthority("ADMIN")

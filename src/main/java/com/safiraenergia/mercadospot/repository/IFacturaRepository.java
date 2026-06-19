@@ -1,5 +1,7 @@
 package com.safiraenergia.mercadospot.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -35,6 +37,13 @@ public interface IFacturaRepository extends JpaRepository<Factura, Long>, JpaSpe
     Double avgMontoTotal();
 
     @Query("SELECT SUM(f.montoTotal) FROM Factura f WHERE f.fechaEmision BETWEEN :fechaInicio AND :fechaFin")
-    Double sumMontoTotalByFechaEmisionBetween(@Param("fechaInicio") java.sql.Date fechaInicio, 
-                                              @Param("fechaFin") java.sql.Date fechaFin);
+    Double sumMontoTotalByFechaEmisionBetween(@Param("fechaInicio") java.sql.Date fechaInicio, @Param("fechaFin") java.sql.Date fechaFin);
+
+    // Método el cual obtiene todas las facturas con ordenamiento dinamico
+    @Query("SELECT f FROM Factura f " +
+           "LEFT JOIN FETCH f.entidad e" +
+           "LEFT JOIN FETCH f.periodo p" +
+           "LEFT JOIN FETCH f.estados es" 
+    )
+    Page<Factura> findAllWithJoins(Pageable pageable);
 }

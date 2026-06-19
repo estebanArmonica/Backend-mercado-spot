@@ -5,6 +5,7 @@ import com.safiraenergia.mercadospot.dto.factura.FacturaFilterDTO;
 import com.safiraenergia.mercadospot.dto.factura.FacturaResponseDTO;
 import com.safiraenergia.mercadospot.models.Factura;
 import com.safiraenergia.mercadospot.models.Entidad;
+import com.safiraenergia.mercadospot.models.Estado;
 import com.safiraenergia.mercadospot.models.Glosa;
 import com.safiraenergia.mercadospot.models.Periodo;
 import com.safiraenergia.mercadospot.repository.IFacturaRepository;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -92,7 +94,7 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
     @Override
     @Transactional(readOnly = true)
     public Page<FacturaResponseDTO> getAllFacturas(Pageable pageable) {
-        log.debug("Getting all facturas with pagination");
+        log.debug("Getting all facturas with pagination and sorting: {} ", pageable);
         return repository.findAll(pageable).map(this::convertToResponseDTO);
     }
     
@@ -249,6 +251,22 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
     }
     
     private FacturaResponseDTO convertToResponseDTO(Factura factura) {
+
+        // Obtenemos el estado principal (el primer estado de la lista)
+        String estadoPrincipal = null;
+        Set<String> estadosNombres = null;
+
+        if(factura.getEstados() != null && !factura.getEstados().isEmpty()){
+            // en caso de querer todos los estados como string realizamos esta parte
+            estadosNombres = factura.getEstados().stream()
+                .map(Estado::getDescripcion)
+                .collect(Collectors.toSet()
+            );
+
+            // Tomamos el primer estado como principal 
+            estadoPrincipal = factura.getEstados().iterator().next().getDescripcion();
+        }
+
         // convertimos e Date de sql a LocalDate
         return FacturaResponseDTO.builder()
             .id(factura.getId())
@@ -262,6 +280,8 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
             .nombreEntidad(factura.getEntidad().getNombre())
             .glosa(factura.getGlosa().getDescripcion())
             .periodo(formatDate(factura.getPeriodo().getMes()))
+            .estado(estadoPrincipal)
+            .estados(estadosNombres)
             .build();
     }
     

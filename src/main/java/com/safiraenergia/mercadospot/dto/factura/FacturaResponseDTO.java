@@ -4,7 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.util.Date;
+import java.util.Set;
+
 
 @Data
 @Builder
@@ -22,4 +25,6 @@ public class FacturaResponseDTO {
     private String nombreEntidad;
     private String glosa;
     private String periodo;
+    private String estado;
+    private Set<String> estados;
 }
