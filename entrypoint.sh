@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# ===================================================================================
+# Script de levantamiento junto con docker para crear archiv .env temporal
+# ===================================================================================
+
 echo "=== Iniciando Backend ETL Mercado Spot ==="
 echo "Perfil: ${SPRING_PROFILE:-prod}"
 echo "Puerto: ${PORT}"

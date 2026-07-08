@@ -51,6 +51,13 @@ al agregar estas variables por medio de `cmd` o `powershell` ingresar los siguie
     # creamos el target para la compilacion de archivo .war
     mvn compile
 
+    # realizamos los test para verificar que cada endpoint del controller funcione correctamente
+    mvn test
+
+    # o de forma especifica
+    mvn test -Dtest=NombreClaseTest
+
+    # si todo funciona correctamente corremos el proyecto
     # levantamos el proyecto de spring boot
     mvn spring-boot:run 
 

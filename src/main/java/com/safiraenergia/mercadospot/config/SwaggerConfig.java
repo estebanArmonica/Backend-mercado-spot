@@ -29,7 +29,7 @@ import org.springframework.http.HttpHeaders;
                 ),
                 @Server(
                         description = "PROD SERVER",
-                        url = "http://localhost:8099"
+                        url = "http://localhost:8095"
                 )
         },
         security = @SecurityRequirement(

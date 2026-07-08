@@ -21,10 +21,15 @@ public class CorsConfig {
       "http://localhost:4200",
             "http://localhost:4201",
             "http://localhost:3000",
+            "http://localhost:8095",
             "http://127.0.0.1:4200",
             "https://*.run.app",
             "https://*.onrender.com",
             "https://tu-dominio.com",
+
+            "http://localhost:8095/swagger-ui.html",
+            "http://localhost:8095/swagger-ui/",
+
             "app://"         
         );
         config.setAllowedOrigins(allowedOrigins);

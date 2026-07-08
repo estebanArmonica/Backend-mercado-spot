@@ -1,4 +1,4 @@
-# Dockerfile
+# Etapa de construcción
 FROM eclipse-temurin:17-jdk-alpine AS builder
 
 RUN apk add --no-cache maven
@@ -10,24 +10,27 @@ RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn clean package -DskipTests
 
+# Etapa de producción
 FROM eclipse-temurin:17-jre-alpine
 
+# Instalar herramientas necesarias
 RUN apk add --no-cache curl
 
+# Crear usuario no-root para seguridad
 RUN adduser -D -u 1000 appuser
 
 WORKDIR /app
 
-# Copiar el JAR y el archivo .env
+# Copiar el JAR construido
 COPY --from=builder /app/target/*.jar app.jar
-COPY entrypoint.sh entrypoint.sh
 
-# crea el directorio necesario
+# Crear directorios necesarios y asignar permisos
 RUN mkdir -p logs uploads backups && chown -R appuser:appuser /app
 
+# Cambiar a usuario no-root
 USER appuser
 
 EXPOSE 8095
 
-# Ejecutar con variables de entorno y .env
-ENTRYPOINT ["./entrypoint.sh"]
+# Usar variables de entorno directamente sin entrypoint script
+ENTRYPOINT ["java", "-jar", "app.jar"]
