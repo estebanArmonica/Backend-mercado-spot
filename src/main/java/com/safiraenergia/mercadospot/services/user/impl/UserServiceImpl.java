@@ -171,4 +171,51 @@ public class UserServiceImpl implements IUserService{
         
         log.info("User deactivated successfully with id: {}", id);
     }
+
+    @Override
+    public Usuario updateOwnProfile(Long userId, Usuario usuarioActualizado) {
+        log.debug("Updating own profile for user id: {}", userId);
+        
+        Usuario existing = findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        // Solo permitir actualizar campos específicos que el usuario puede modificar
+        if (usuarioActualizado.getUsername() != null && !usuarioActualizado.getUsername().equals(existing.getUsername())) {
+            if (existsByUsername(usuarioActualizado.getUsername())) {
+                throw new RuntimeException("Username already exists: " + usuarioActualizado.getUsername());
+            }
+            existing.setUsername(usuarioActualizado.getUsername());
+        }
+        
+        if (usuarioActualizado.getEmail() != null && !usuarioActualizado.getEmail().equals(existing.getEmail())) {
+            if (existsByEmail(usuarioActualizado.getEmail())) {
+                throw new RuntimeException("Email already exists: " + usuarioActualizado.getEmail());
+            }
+            existing.setEmail(usuarioActualizado.getEmail());
+        }
+
+        Usuario updated = usuarioRepository.save(existing);
+        log.info("Profile updated successfully for user id: {}", userId);
+
+        return updated;
+    }
+
+    @Override
+    public void changeOwnPassword(Long userId, String currentPassword, String newPassword) {
+        log.debug("Changing own password for user id: {}", userId);
+        
+        Usuario user = findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        // Verificar que la contraseña actual sea correcta
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        
+        // Cambiar la contraseña
+        user.setPassword(passwordEncoder.encode(newPassword));
+        usuarioRepository.save(user);
+        
+        log.info("Own password changed successfully for user id: {}", userId);
+    }
 }

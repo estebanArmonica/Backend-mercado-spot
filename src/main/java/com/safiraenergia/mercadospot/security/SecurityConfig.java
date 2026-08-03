@@ -92,6 +92,9 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(authorize -> 
                 authorize
+                    // Error
+                    .requestMatchers("/error").permitAll()
+
                     // Swagger UI endpoints
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     
@@ -99,44 +102,49 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/auth/**").permitAll()
 
                     // permisos de admin y backuser en el ETL
-                    .requestMatchers("/api/v1/etl/upload").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/etl/progress/{jobId}").hasAnyRole("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/etl/upload").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/etl/progress/{jobId}").hasAnyAuthority("ADMIN","BACK_USER")
                     .requestMatchers("/api/v1/etl/cancel/{jobId}").hasAuthority("ADMIN")
 
+                    // permisos de admin y back user en usuarios
+                    .requestMatchers("/api/v1/usuarios/updated-profile").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/usuarios/change-password").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/usuarios/me").hasAnyAuthority("ADMIN","BACK_USER")
+
                     // permisos de admin y backuser de entidad
-                    .requestMatchers("/api/v1/entidad/list-all").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/list-entidad/{id}").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/rut/{rut}").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/deudores").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/entidad/acreedores").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/entidad/list-all").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/entidad/list-entidad/{id}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/entidad/rut/{rut}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/entidad/deudores").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/entidad/acreedores").hasAnyAuthority("ADMIN","BACK_USER")
                     .requestMatchers("/api/v1/entidad/create-new-entidad").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/entidad/update-entidad/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/entidad/delete-entidad/{id}").hasAuthority("ADMIN")
 
                     // permisos de admin y backuser en estado
-                    .requestMatchers("/api/v1/estados/list-all").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/estados/list-estado/{id}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/estados/descripcion/{descripcion}").hasAnyRole("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/estados/list-all").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/estados/list-estado/{id}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/estados/descripcion/{descripcion}").hasAnyAuthority("ADMIN","BACK_USER")
                     .requestMatchers("/api/v1/estados/create-new-estado").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/estados/update-estado/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/estados/delete-estado/{id}").hasAuthority("ADMIN")
 
                     // permisos de admin y backuser en glosa
-                    .requestMatchers("/api/v1/glosa/list-all").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/glosa/list-glosa/{id}").hasAnyRole("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/glosa/search").hasAnyRole("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/glosa/list-all").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/glosa/list-glosa/{id}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/glosa/search").hasAnyAuthority("ADMIN","BACK_USER")
                     .requestMatchers("/api/v1/glosa/create-new-glosa").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/glosa/update-glosa/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/glosa/delete-glosa/{id}").hasAuthority("ADMIN")
 
 
                     // permisos de admin y backuser en factura
-                    .requestMatchers("/api/v1/factura/list-all").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/list-factura/{id}").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/entidad/{rut}").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/periodo").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/search").hasAnyAuthority("ADMIN","BACKUSER")
-                    .requestMatchers("/api/v1/factura/estadisticas").hasAnyAuthority("ADMIN","BACKUSER")
+                    .requestMatchers("/api/v1/factura/list-all").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/factura/list-factura/{id}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/factura/entidad/{rut}").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/factura/periodo").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/factura/search").hasAnyAuthority("ADMIN","BACK_USER")
+                    .requestMatchers("/api/v1/factura/estadisticas").hasAnyAuthority("ADMIN","BACK_USER")
                     .requestMatchers("/api/v1/factura/created-factura").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/factura/update-factura/{id}").hasAuthority("ADMIN")
                     .requestMatchers("/api/v1/factura/updated-patch/{id}/estado").hasAuthority("ADMIN")
@@ -145,6 +153,8 @@ public class SecurityConfig {
                     // All other requests need authentication
                     .anyRequest().authenticated()
             )
+            //.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            //.addFilterAfter(sqlInjectionFilter, JwtAuthenticationFilter.class);
             .addFilterBefore(sqlInjectionFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         

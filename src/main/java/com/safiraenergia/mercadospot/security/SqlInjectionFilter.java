@@ -21,6 +21,12 @@ public class SqlInjectionFilter extends OncePerRequestFilter{
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        String contentType = request.getContentType();
+        if(contentType != null && contentType.toLowerCase().startsWith("multipart/")){
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         // Validate request parameters
         if (containsSqlInjection(request)) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);

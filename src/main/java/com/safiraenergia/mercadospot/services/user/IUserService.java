@@ -24,4 +24,8 @@ public interface IUserService {
     void changePassword(Long id, String newPassword);
     void activateUser(Long id);
     void deactivateUser(Long id);
+
+    // metodos para un usuario
+    Usuario updateOwnProfile(Long userId, Usuario usuarioActualizado);
+    void changeOwnPassword(Long userId, String currentPassword, String newPassword);
 }

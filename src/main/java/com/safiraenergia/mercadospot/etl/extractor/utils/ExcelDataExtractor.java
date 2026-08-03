@@ -104,7 +104,7 @@ public class ExcelDataExtractor implements DataExtractor {
         // Obtener headers
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(getCellValueAsString(cell));
+            headers.add(getCellValueAsString(cell).trim());
         }
         
         log.info("Headers encontrados en hoja {}: {}", tipoEntidad, headers);

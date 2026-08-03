@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Check if it's an access token, not refresh token
                 if (!jwtGenerator.isRefreshToken(jwt)) {
                     String username = jwtGenerator.getUsernameFromToken(jwt);
-                    
+                    log.info("JWT ok, username extraido: {}", username);
                     UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
                     
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -55,7 +55,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
+            log.error("Cannot set user authentication: {}", e);
+            System.out.println("Error JWT Filter: " + e);
         }
         filterChain.doFilter(request, response);
     }

@@ -81,6 +81,7 @@ class FolioValidator implements Validator {
     }
 }
 
+@Slf4j
 class MontoValidator implements Validator {
     private Validator next;
     
@@ -91,11 +92,11 @@ class MontoValidator implements Validator {
         }
         // Validate calculation
         double expectedTotal = dto.getMontoNeto() * 1.19; // Assuming 19% IVA
-        double tolerance = 0.01;
+        double actualTotal = dto.getMontoTotal();
+        double tolerance = 1.0;
         
-        if (Math.abs(dto.getMontoTotal() - expectedTotal) > tolerance) {
-            System.out.println("Monto total validation warning - Expected: {}, Actual: {}" + 
-                     expectedTotal +" Actual: "+ dto.getMontoTotal());
+        if (Math.abs(actualTotal - expectedTotal) > tolerance) {
+            log.warn("Monto total validation warning - Expected: {}, Actual: {}", dto.getFolio(), expectedTotal, dto.getMontoTotal());
         }
         
         if (next != null) next.validate(dto);
