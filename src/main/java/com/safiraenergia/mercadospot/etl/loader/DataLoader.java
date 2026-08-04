@@ -19,35 +19,55 @@ public class DataLoader {
     private ETLTransactionService transactionService;
 
     public LoadResult load(List<FacturaDTO> facturas) {
-        int inserted = 0;
-        int skipped = 0;
-        List<String> errors = new ArrayList<>();
+        if (facturas == null || facturas.isEmpty()) {
+            log.warn("No hay facturas para cargar");
+            return new LoadResult(0, 0, 0, new ArrayList<>());
+        }
         
-        int batchSize = 25;
+        int totalInserted = 0;
+        int totalSkipped = 0;
+        List<String> allErrors = new ArrayList<>();
+        
+        // 🔥 Batch size ajustado para evitar timeout
+        int batchSize = 50; // 🔥 Aumentado de 25 a 50
+        int totalBatches = (facturas.size() + batchSize - 1) / batchSize;
+        
+        log.info("Iniciando carga de {} facturas en {} batches de {} registros", 
+            facturas.size(), totalBatches, batchSize);
+        
+        long startTime = System.currentTimeMillis();
         
         for (int i = 0; i < facturas.size(); i += batchSize) {
             int end = Math.min(i + batchSize, facturas.size());
             List<FacturaDTO> batch = facturas.subList(i, end);
+            int batchNum = (i / batchSize) + 1;
             
             try {
-                // Cada batch se procesa en su propia transacción
-                LoadResult batchResult = transactionService.processBatch(batch);
-
-                inserted += batchResult.getInserted();
-                skipped += batchResult.getSkipped();
-                errors.addAll(batchResult.getErrors());
-
-                log.debug("Batch processed - Inserted: {}, Skipped: {}", batchResult.getInserted(), batchResult.getSkipped());
-            } catch (Exception e) {
-                log.error("Error processing batch {}-{}", i, end, e);
-                errors.add("Batch " + i +"-" + end +" failed: " + e.getMessage());
+                log.debug("Procesando batch {} de {} (registros {}-{})", 
+                    batchNum, totalBatches, i + 1, end);
                 
-                skipped += batch.size();
+                // 🔥 Procesar batch en su propia transacción
+                LoadResult batchResult = transactionService.processBatch(batch);
+                
+                totalInserted += batchResult.getInserted();
+                totalSkipped += batchResult.getSkipped();
+                allErrors.addAll(batchResult.getErrors());
+                
+                log.debug("Batch {} completado - Insertados: {}, Saltados: {}, Errores: {}", 
+                    batchNum, batchResult.getInserted(), batchResult.getSkipped(), 
+                    batchResult.getErrors().size());
+                
+            } catch (Exception e) {
+                log.error("Error procesando batch {} (registros {}-{})", batchNum, i + 1, end, e);
+                allErrors.add("Batch " + batchNum + " (registros " + (i+1) + "-" + end + ") falló: " + e.getMessage());
+                totalSkipped += batch.size();
             }
         }
         
-        log.info("Load completed - Inserted: {}, Skipped: {}, Errors: {}", inserted, skipped, errors.size());
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("Carga completada en {} ms - Insertados: {}, Saltados: {}, Errores: {}", 
+            duration, totalInserted, totalSkipped, allErrors.size());
         
-        return new LoadResult(inserted, 0, skipped, errors);
+        return new LoadResult(totalInserted, 0, totalSkipped, allErrors);
     }
 }

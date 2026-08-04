@@ -46,4 +46,7 @@ public interface IFacturaRepository extends JpaRepository<Factura, Long>, JpaSpe
            "LEFT JOIN FETCH f.estados es" 
     )
     Page<Factura> findAllWithJoins(Pageable pageable);
+
+    @Query(value = "SELECT COUNT(f) > 0 FROM Factura f WHERE f.folio = :folio AND f.periodo.id = :periodoId", nativeQuery = true)
+    boolean existsByFolioAndPeriodoId(@Param("folio") int folio, @Param("periodoId") Long periodoId);
 }

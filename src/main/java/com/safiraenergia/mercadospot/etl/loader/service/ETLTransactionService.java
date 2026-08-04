@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -47,60 +49,63 @@ public class ETLTransactionService {
     @Autowired
     private ITipoEntidadRepository tipoEntidadRepo;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    // 🔥 Limitar tamaño de cachés
     private final ConcurrentHashMap<String, Periodo> periodoCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Glosa> glosaCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Entidad> entidadCache = new ConcurrentHashMap<>();
+    
+    // 🔥 Contador para limpiar caché periódicamente
+    private int processedCount = 0;
+    private static final int CACHE_CLEANUP_THRESHOLD = 500;
 
-    @Transactional(rollbackFor = Exception.class, timeout = 300)
+    @Transactional(rollbackFor = Exception.class, timeout = 120) // 🔥 Reducido de 300 a 120 segundos
     public LoadResult processBatch(List<FacturaDTO> facturas) {
         int inserted = 0;
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         
+        // 🔥 Obtener o crear estado y tipo entidad una sola vez por batch
+        Estado estadoPendiente = estadoRepo.findByDescripcion("PENDIENTE")
+            .orElseGet(() -> estadoRepo.save(Estado.builder().descripcion("PENDIENTE").build()));
+        TipoEntidad tipoDeudor = tipoEntidadRepo.findByTipoRol("DEUDOR")
+            .orElseGet(() -> tipoEntidadRepo.save(TipoEntidad.builder().tipoRol("DEUDOR").build()));
+        
         for (FacturaDTO dto : facturas) {
             try {
+                // 🔥 Validación rápida
                 if (!validateDto(dto)) {
                     skipped++;
                     errors.add("Invalid DTO data for folio: " + dto.getFolio());
                     continue;
                 }
                 
-                // Calcular monto total si es necesario
+                // 🔥 Calcular monto total si es necesario
                 if (dto.getMontoTotal() == 0) {
                     double calculatedTotal = dto.getMontoNeto() * 1.19;
                     dto.setMontoTotal((int) Math.round(calculatedTotal));
                 }
                 
-                // Obtener o crear periodo
+                // 🔥 Obtener periodo (usando caché)
                 Periodo periodo = getOrCreatePeriodo(dto.getPeriodo());
                 int folioInt = dto.getFolio().intValue();
-                Long periodoId = periodo.getId();
                 
-                // Verificar si ya existe
-                long count = facturaRepo.countByFolioAndPeriodo(folioInt, periodoId);
-                if (count > 0) {
+                // 🔥 Verificar existencia con query optimizada
+                if (facturaRepo.existsByFolioAndPeriodoId(folioInt, periodo.getId())) {
                     log.debug("Factura with folio {} already exists", dto.getFolio());
                     skipped++;
                     continue;
                 }
                 
-                // Obtener o crear estado
-                String estadoNombre = dto.getEstado() != null ? dto.getEstado() : "PENDIENTE";
-                Estado estado = estadoRepo.findByDescripcion(estadoNombre)
-                    .orElseGet(() -> estadoRepo.save(Estado.builder().descripcion(estadoNombre).build()));
+                // 🔥 Obtener entidad (usando caché)
+                Entidad entidad = getOrCreateEntidad(dto.getRutEntidad(), dto.getNomEntidad(), tipoDeudor);
                 
-                // Obtener o crear tipo de entidad
-                String tipoNombre = dto.getTipoEntidad() != null ? dto.getTipoEntidad() : "DEUDOR";
-                TipoEntidad tipoEntidad = tipoEntidadRepo.findByTipoRol(tipoNombre)
-                    .orElseGet(() -> tipoEntidadRepo.save(TipoEntidad.builder().tipoRol(tipoNombre).build()));
-                
-                // Obtener o crear entidad
-                Entidad entidad = getOrCreateEntidad(dto.getRutEntidad(), dto.getNomEntidad(), tipoEntidad);
-                
-                // Obtener o crear glosa
+                // 🔥 Obtener glosa (usando caché)
                 Glosa glosa = getOrCreateGlosa(dto.getGlosa());
                 
-                // Crear factura
+                // 🔥 Crear factura SIN saveAndFlush()
                 Factura factura = Factura.builder()
                     .folio(folioInt)
                     .montoNeto(dto.getMontoNeto())
@@ -113,18 +118,29 @@ public class ETLTransactionService {
                     .glosa(glosa)
                     .build();
                 
-                // Agregar estado a la factura
-                factura.getEstados().add(estado);
+                factura.getEstados().add(estadoPendiente);
                 
-                facturaRepo.saveAndFlush(factura);
+                // 🔥 Guardar usando persist (más eficiente que saveAndFlush)
+                entityManager.persist(factura);
                 inserted++;
+                processedCount++;
+                
+                // 🔥 Limpiar caché periódicamente para evitar memory leak
+                if (processedCount >= CACHE_CLEANUP_THRESHOLD) {
+                    cleanupCaches();
+                    processedCount = 0;
+                }
                 
             } catch (Exception e) {
-                log.error("Error loading factura: {}", dto, e);
+                log.error("Error loading factura with folio: {}", dto.getFolio(), e);
                 errors.add("Failed to load folio " + dto.getFolio() + ": " + e.getMessage());
+                skipped++;
             }
         }
-
+        
+        // 🔥 Flush al final del batch
+        entityManager.flush();
+        
         return new LoadResult(inserted, 0, skipped, errors);
     }
 
@@ -135,8 +151,8 @@ public class ETLTransactionService {
         if (dto.getGlosa() == null || dto.getGlosa().trim().isEmpty()) return false;
         if (dto.getRutEntidad() == null || dto.getRutEntidad().trim().isEmpty()) return false;
         if (dto.getNomEntidad() == null || dto.getNomEntidad().trim().isEmpty()) return false;
-        if (dto.getMontoNeto() == 0 || dto.getMontoNeto() <= 0) {
-            log.debug("Invalid montNeto: {}", dto.getMontoNeto());
+        if (dto.getMontoNeto() <= 0) {
+            log.debug("Invalid montoNeto: {}", dto.getMontoNeto());
             return false;
         }
         return true;
@@ -185,17 +201,40 @@ public class ETLTransactionService {
                         .rutEntidad(normalizedRut)
                         .nombre(normalizedNombre)
                         .build();
-                    return entidadRepo.saveAndFlush(nuevaEntidad);
+                    // 🔥 Usar persist en lugar de saveAndFlush
+                    entityManager.persist(nuevaEntidad);
+                    return nuevaEntidad;
                 });
             
             // Agregar el tipo de entidad si no lo tiene
             if (tipoEntidad != null && !entidad.getTipoEntidad().contains(tipoEntidad)) {
                 entidad.getTipoEntidad().add(tipoEntidad);
-                entidad = entidadRepo.saveAndFlush(entidad);
+                // 🔥 Usar merge en lugar de saveAndFlush
+                entidad = entityManager.merge(entidad);
                 log.debug("Added tipoEntidad {} to entidad {}", tipoEntidad.getTipoRol(), normalizedRut);
             }
             
             return entidad;
         });
+    }
+
+    // 🔥 Método para limpiar cachés
+    private void cleanupCaches() {
+        log.debug("Limpiando cachés - Periodos: {}, Glosas: {}, Entidades: {}", 
+            periodoCache.size(), glosaCache.size(), entidadCache.size());
+        
+        if (periodoCache.size() > 200) {
+            periodoCache.clear();
+        }
+        if (glosaCache.size() > 500) {
+            glosaCache.clear();
+        }
+        if (entidadCache.size() > 500) {
+            entidadCache.clear();
+        }
+        
+        // 🔥 Limpiar el EntityManager
+        entityManager.flush();
+        entityManager.clear();
     }
 }
