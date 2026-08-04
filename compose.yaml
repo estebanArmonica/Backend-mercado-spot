@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: armonica21/mercadospot:latest
+    container_name: mercado-spot-app
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    environment:
+      - SPRING_DATASOURCE_URL=${SUPERBASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPERBASE_USER}
+      - SPRING_DATASOURCE_PASSWORD=${SUPERBASE_PASS}
+      - JWT_FIRMA=${JWT_FIRMA}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - LOGGING_FILE_NAME=${LOGGING_FILE_NAME}
+      - SERVER_PORT=${SERVER_PORT_PROD}
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - mercado-network
+
+networks:
+  mercado-network:
+    driver: bridge
+    
