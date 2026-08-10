@@ -16,9 +16,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacturaDTO {
     private Long folio;
-    private int montoNeto;
-    private int montoBruto;
-    private int montoTotal;
+    private Double montoNeto;
+    private Double montoBruto;
+    private Double montoTotal;
     private Date fechaEmision;
     private Date fechaPago;
     private Date periodo;

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import com.safiraenergia.mercadospot.dto.factura.FacturaDTO;
 import com.safiraenergia.mercadospot.etl.transformer.validation.ValidationChain;
 import com.safiraenergia.mercadospot.exceptions.TransformationException;
+import com.safiraenergia.mercadospot.models.Periodo;
 import com.safiraenergia.mercadospot.utils.ETLLogger;
 
 import lombok.extern.slf4j.Slf4j;
@@ -24,23 +25,20 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class DataTransformer {
-    
+
     @Autowired
     private ValidationChain validationChain;
 
     @Autowired
     private ETLLogger etlLogger;
 
-    // constante para detectar fórmulas de Excel
     private static final Pattern EXCEL_FORMULA_PATTERN = Pattern.compile("^_xlfn\\.|^=.*$|^\\[.*\\].*$");
     private static final Pattern RUT_PATTERN = Pattern.compile("^\\d{1,8}-[\\dkK]$");
     private static final Set<String> INVALID_DATE_VALUES = Set.of(
-        "S/I", "N/A", "SIN INFORMACION", "SIN INFO", 
-        "NO APLICA", "NA", "---", "___", "NULL", 
-        "VACIO", "EMPTY", "S/F"
-    );
+            "S/I", "N/A", "SIN INFORMACION", "SIN INFO",
+            "NO APLICA", "NA", "---", "___", "NULL",
+            "VACIO", "EMPTY", "S/F");
 
-    // mapeo de código de estado a estados reales
     private static final Map<String, String> CODIGO_ESTADO_MAP = new HashMap<>();
 
     public List<FacturaDTO> transform(List<Map<String, Object>> rowData, String jobId) throws TransformationException {
@@ -48,382 +46,405 @@ public class DataTransformer {
         int errorCount = 0;
         int skipCount = 0;
 
-        if(rowData == null || rowData.isEmpty()){
+        if (rowData == null || rowData.isEmpty()) {
             log.warn("No data to transform");
             return facturas;
         }
 
-        // log de columnas disponibles
-        if(!rowData.isEmpty()) {
-            log.info("Columnas disponibles en el Excel: {}", rowData.get(0).keySet());
+        // Log de columnas disponibles
+        if (!rowData.isEmpty()) {
+            Map<String, Object> firstRow = rowData.get(0);
+            log.info("Columnas disponibles en el Excel: {}", firstRow.keySet());
+            log.info("Contenido de la primera fila: {}", firstRow);
         }
 
         for (int i = 0; i < rowData.size(); i++) {
             Map<String, Object> row = rowData.get(i);
             try {
-                FacturaDTO dto = transformRow(row, i, jobId);
+                String tipoEntidad = (String) row.get("_tipoEntidad");
+                if(tipoEntidad == null || tipoEntidad.trim().isEmpty()) {
+                    tipoEntidad = "DEUDOR";
+                }
+                log.debug("Procesando fila {} - Tipo: {}", i, tipoEntidad);
 
-                // validamos que el DTO tenga datos mínimos antes de agregar
-                if(dto.getFolio() != null && dto.getFolio() > 0){
-                    validationChain.validate(dto);
+                Long folio = getLongValueFromRow(row, "Folio", "N°", "Folio Factura", "N° Folio Factura");
+                if (folio == null || folio <= 0) {
+                    log.warn("Fila {} tiene folio nulo - Saltando", i);
+                    skipCount++;
+                    continue;
+                }
+
+                // Obtenemos la fecha de emision (con sus diferentes nombres)
+                java.util.Date fechaEmisionUtil = getDateValueFromRow(row, "Fecha de Emision", "Fecha a Emision", "Fecha de Emisión", "Fecha Emision", "Fecha", " Fecha ", "Fecha ");
+                if (fechaEmisionUtil == null) {
+                    log.warn("Fila {} tiene fecha de emisión nula - Saltando", i);
+                    skipCount++;
+                    continue;
+                }
+
+                Double montoNeto = getDoubleValueFromRow(row," Neto ", "Neto", "Monto Neto", "monto_neto");
+                Double montoBruto = getDoubleValueFromRow(row," Bruto ", "Bruto", "Monto Bruto", "monto_bruto");
+                Double montoTotal = getDoubleValueFromRow(row," Total ", "Total", "Monto Total", "monto_total");
+                
+                String rutEntidad = getStringValueFromRow(row,"RUT Acreedor", "RUT Deudor", "RUT Entidad", "Rut", "RUT", "rut_entidad");
+                String nomEntidad = getStringValueFromRow(row,"Nemotecnico Acreedor", "Nemotecnico Deudor", "Nombre Entidad", "Nombre", "Entidad", "nomentidad");
+                String glosa = getStringValueFromRow(row,"GLOSA", "Glosa", "glosa");
+                String estado = getStringValueFromRow(row,"Estado de Pago", "Estado", "estado");
+
+                // log de las filas encontradas
+                if(i < 5) {
+                    log.info("=== FILA {} ===", i);
+                    log.info("  Folio: {}", folio);
+                    log.info("  Monto Neto: {}", montoNeto);
+                    log.info("  RUT: {}", rutEntidad);
+                    log.info("  Nombre: {}", nomEntidad);
+                    log.info("  Glosa: {}", glosa);
+                    log.info("  Estado: {}", estado);
+                    log.info("  Fecha Emision: {}", fechaEmisionUtil);
+                }
+
+                // 🔥 Crear DTO usando builder
+                FacturaDTO.FacturaDTOBuilder builder = FacturaDTO.builder()
+                    .folio(folio)
+                    .montoNeto(montoNeto != null ? montoNeto : 0.0)
+                    .montoBruto(montoBruto != null ? montoBruto : 0.0)
+                    .montoTotal(montoTotal != null ? montoTotal : 0.0)
+                    .rutEntidad(rutEntidad)
+                    .nomEntidad(nomEntidad)
+                    .glosa(glosa)
+                    .estado(estado)
+                    .tipoEntidad(tipoEntidad);
+
+                // 🔥 Procesar fechas (convertir a java.sql.Date)
+                Date fechaEmision = new java.sql.Date(fechaEmisionUtil.getTime());
+                builder.fechaEmision(fechaEmision);
+
+                // fecha de pago
+                java.util.Date fechaPagoUtil = getDateValueFromRow(row, "Fecha de Pago", "Fecha Pago", "Fecha", "Fecha ", " Fecha ");
+                Date fechaPago = null;
+                if (fechaPagoUtil != null) {
+                    fechaPago = new java.sql.Date(fechaPagoUtil.getTime());
+                } else {
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(fechaEmision);
+                    cal.add(Calendar.DAY_OF_MONTH, 30);
+                    fechaPago = new java.sql.Date(cal.getTimeInMillis());
+                    log.debug("Fecha de pago derivada para folio {}", folio);
+                }
+                builder.fechaPago(fechaPago);
+
+                if (fechaEmisionUtil != null) {
+                    fechaEmision = new java.sql.Date(fechaEmisionUtil.getTime());
+                }
+
+                // 🔥 Validar fechas
+                if (fechaEmision != null) {
+                    Periodo periodo = Periodo.builder()
+                            .mes(fechaEmision)
+                            .build();
+                    builder.periodo(fechaEmision);
+                }
+
+                // 🔥 Construir y validar DTO
+                FacturaDTO dto = builder.build();
+
+                // Validamos el DTO con logs detallados
+                if (validateDtoWithLogs(dto, i)) {
                     facturas.add(dto);
                 } else {
-                    if (i < 10) {
-                        etlLogger.logWarning(jobId, "Row " + i + " has invalid folio: " + dto.getFolio());
-                    }
+                    log.warn("Fila {} - DTO inválido", i);
                     skipCount++;
                 }
+
             } catch (Exception e) {
                 errorCount++;
-                if(errorCount <= 10){
+                if (errorCount <= 10) {
                     etlLogger.logError(jobId, "Error transforming row " + i, e);
                 }
             }
         }
 
-        etlLogger.logInfo(jobId, "Transformation completed - Success: " + facturas.size() + 
-                         ", Errors: " + errorCount + ", Skipped: " + skipCount);
+        etlLogger.logInfo(jobId, "Transformation completed - Success: " + facturas.size() +
+                ", Errors: " + errorCount + ", Skipped: " + skipCount);
         return facturas;
     }
 
-    private FacturaDTO transformRow(Map<String, Object> row, int rowIndex, String jobId) {
-        // Obtener valores originales
-        String estadoOriginal = convertToString(getValueFromRow(row, "Estado de Pago", "Estado"));
-        String fechaEmisionOriginal = convertToString(getValueFromRow(row, "fecha_emision", "Fecha de Emision", "Fecha Emision", "Fecha Emisión"));
-        String fechaPagoOriginal = convertToString(getValueFromRow(row, "fecha_pago", "Fecha de Pago", "Fecha Pago"));
-        
-        // Limpiar fórmulas de Excel
-        String estadoLimpio = limpiarFormulaExcel(estadoOriginal);
-        String fechaEmisionLimpia = limpiarFormulaExcel(fechaEmisionOriginal);
-        String fechaPagoLimpia = limpiarFormulaExcel(fechaPagoOriginal);
-        
-        // Normalizar estado
-        String estadoNormalizado = normalizarEstado(estadoLimpio);
-        
-
-        // obtenemos el objeto de Fecha Emision directamente
-        Object fechaEmisionObj = getValueFromRow(row, "fecha_emision", "Fecha de Emision", "Fecha Emision", "Fecha Emisión");
-        Object fechaPagoObj = getValueFromRow(row, "fecha_pago", "Fecha de Pago", "Fecha Pago");
-
-        // Procesar fechas
-        Date fechaEmision = convertToDate(fechaEmisionObj);
-        Date fechaPago = convertToDate(fechaPagoObj);
-
-        // validacion de datos en fecha emision
-        if (fechaEmision == null && fechaEmisionObj != null) {
-            String valorStr = fechaEmisionObj.toString();
-            // No mostrar warning para valores especiales comunes
-            if (!valorStr.equalsIgnoreCase("S/I") && 
-                !valorStr.equalsIgnoreCase("N/A") && 
-                !valorStr.equalsIgnoreCase("SIN INFORMACION")) {
-                log.warn("Row {}: No se pudo convertir fechaEmision: '{}' (tipo: {})", 
-                    rowIndex, valorStr, fechaEmisionObj.getClass().getSimpleName());
-            } else {
-                log.debug("Row {}: fechaEmision tiene valor especial: '{}'", rowIndex, valorStr);
-            }
-        } else if (fechaEmision != null) {
-            log.debug("Row {}: fechaEmision convertida a: {}", rowIndex, fechaEmision);
-        }
-
-        // validacion para fecha de pago
-        if (fechaPago == null && fechaPagoObj != null) {
-            log.debug("Row {}: No se pudo convertir fechaPago: '{}' (tipo: {})", 
-                rowIndex, fechaPagoObj, fechaPagoObj.getClass().getSimpleName());
-        }
-
-        // obtenemos el tipo de entidad desde el campo agregado
-        String tipoEntidadFromSheet = convertToString(row.get("_tipoEntidad"));
-        String tipoEntidad = tipoEntidadFromSheet != null ? tipoEntidadFromSheet : detectarTipoEntidad(row, rowIndex);
-        
-        // Si es PAGADA pero no tiene fecha de pago, derivarla
-        if ("PAGADA".equals(estadoNormalizado) && fechaPago == null) {
-            if (fechaEmision != null) {
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(fechaEmision);
-                cal.add(Calendar.DAY_OF_MONTH, 30);
-                fechaPago = new Date(cal.getTimeInMillis());
-                etlLogger.logInfo(jobId, "Derived fechaPago from fechaEmision for folio: " + row.get("folio"));
-            } else {
-                fechaPago = new Date(System.currentTimeMillis());
-            }
+    // metodo de la validacion con logs
+    private boolean validateDtoWithLogs(FacturaDTO dto, int rowIndex) {
+        if (dto == null) {
+            log.warn("Fila {} - DTO es null", rowIndex);
+            return false;
         }
         
-        return FacturaDTO.builder()
-            .folio(convertToLong(getValueFromRow(row, "folio", "Folio", "N° Folio Factura")))
-            .montoNeto(convertToInteger(getValueFromRow(row, "monto_neto", "Neto")))
-            .montoBruto(convertToInteger(getValueFromRow(row, "monto_bruto", "Bruto")))
-            .montoTotal(convertToInteger(getValueFromRow(row, "monto_total", "Total", "Monto Total")))
-            .fechaEmision(fechaEmision)
-            .fechaPago(fechaPago)
-            .rutEntidad(convertToString(getValueFromRow(row, "rut_entidad", "RUT Acreedor", "RUT Deudor", "Rut", "RUT")))
-            .nomEntidad(convertToString(getValueFromRow(row, "nomentidad", "Nemotecnico Acreedor", "Nemotecnico Deudor", "Nombre", "Entidad")))
-            .glosa(convertToString(getValueFromRow(row, "glosa", "GLOSA", "Glosa")))
-            .periodo(convertToDate(getValueFromRow(row, "periodo", "Período", "Periodo", "Fecha")))
-            .estado(estadoNormalizado)
-            .estadoOriginal(estadoLimpio)  // Guardar el valor original
-            .tipoEntidad(tipoEntidad)
-            .build();
+        if (dto.getFolio() == null || dto.getFolio() <= 0) {
+            log.warn("Fila {} - Folio inválido: {}", rowIndex, dto.getFolio());
+            return false;
+        }
+        
+        if (dto.getPeriodo() == null) {
+            log.warn("Fila {} - Periodo null para folio: {}", rowIndex, dto.getFolio());
+            return false;
+        }
+        
+        if (dto.getGlosa() == null || dto.getGlosa().trim().isEmpty()) {
+            log.warn("Fila {} - Glosa vacía para folio: {}", rowIndex, dto.getFolio());
+            return false;
+        }
+        
+        if (dto.getRutEntidad() == null || dto.getRutEntidad().trim().isEmpty()) {
+            log.warn("Fila {} - RUT vacío para folio: {}", rowIndex, dto.getFolio());
+            return false;
+        }
+        
+        if (dto.getNomEntidad() == null || dto.getNomEntidad().trim().isEmpty()) {
+            log.warn("Fila {} - Nombre entidad vacío para folio: {}", rowIndex, dto.getFolio());
+            return false;
+        }
+        
+        if (dto.getMontoNeto() == null || dto.getMontoNeto() <= 0) {
+            log.warn("Fila {} - montoNeto inválido para folio: {} (valor: {})", 
+                rowIndex, dto.getFolio(), dto.getMontoNeto());
+            return false;
+        }
+
+        return true;
     }
 
-    private boolean isInvalidDateValue(String value) {
-        if(value == null) return true;
-        String uppeValue = value.trim().toUpperCase();
-        return INVALID_DATE_VALUES.contains(uppeValue);
-    }
-
-    /**
-     * Limpia fórmulas de Excel y devuelve el valor real
-    */
-    private String limpiarFormulaExcel(String value) {
-        if (value == null) return null;
-        
-        String cleanValue = value.trim();
-        
-        // Si es una fórmula de Excel, intentar extraer el valor real
-        if (EXCEL_FORMULA_PATTERN.matcher(cleanValue).find()) {
-            // Para fórmulas de BUSCARX, no podemos evaluar, retornar null
-            if (cleanValue.contains("BUSCARX") || cleanValue.contains("XLOOKUP")) {
+    // 🔥 Métodos auxiliares
+    private Long getLongValue(Object value) {
+        if (value == null)
+            return null;
+        try {
+            if (value instanceof Number) {
+                return ((Number) value).longValue();
+            }
+            String str = value.toString().trim();
+            if (str.isEmpty())
                 return null;
-            }
-            // Para concatenaciones como RUT&Neto, intentar extraer solo el RUT
-            if (cleanValue.contains("&")) {
-                // Intentar extraer el RUT de la fórmula
-                String[] parts = cleanValue.split("&");
-                if (parts.length > 0) {
-                    String posibleRut = parts[0].replaceAll("[^\\d-]", "");
-                    if (RUT_PATTERN.matcher(posibleRut).matches()) {
-                        return posibleRut;
-                    }
-                }
-            }
+            return Long.parseLong(str);
+        } catch (Exception e) {
+            log.error("Error con getLongValue: {}", e.getMessage());
             return null;
         }
-        
-        return cleanValue;
     }
 
-    /**
-     * Detecta si la fila corresponde a un DEUDOR o ACREDOOR basado en las columnas presentes
-    */
-    private String detectarTipoEntidad(Map<String, Object> row, int rowIndex) {
-        // si tiene "RUT Acreedor o Nemotecnico Acreedor" es ACREEDOR
-        if (row.containsKey("RUT Acreedor") || row.containsKey("Nemotecnico Acreedor")) {
-            return "Acreedor";
+    // 🔥 Retorna Double en lugar de double
+    private Double getDoubleValue(Object value) {
+        if (value == null)
+            return 0.0;
+        try {
+            if (value instanceof Number) {
+                return ((Number) value).doubleValue();
+            }
+            String str = value.toString().trim().replace("$", "").replace(",", "");
+            if (str.isEmpty())
+                return 0.0;
+            return Double.parseDouble(str);
+        } catch (Exception e) {
+            return 0.0;
         }
-
-        // Si tiene "RUT Deudor" o "Nemotecnico Deudor" es DEUDOR
-        if (row.containsKey("RUT Deudor") || row.containsKey("Nemotecnico Deudor")) {
-            return "Deudor";
-        }
-
-        // por defecto retornara a DEUDOR
-        return "Deudor";
     }
 
-
-    /**
-     * Normaliza el estado de pago a solo dos valores: PAGADA o PENDIENTE
-     * - Si el estado contiene "Pagado" (insensible a mayúsculas) → PAGADA
-     * - Cualquier otro valor (códigos, vacío, null, etc.) → PENDIENTE
-    */
-    private String normalizarEstado(String estado) {
-        if (estado == null || estado.trim().isEmpty()) {
-            return "PENDIENTE";
-        }
-        
-        String estadoLower = estado.toLowerCase().trim();
-        
-        // Solo detectar "pagado"
-        if (estadoLower.contains("pagado")) {
-            return "PAGADA";
-        }
-
-        // cualquier otro valor (códigos como numeros, valores, vacío, etc.) se tomo pendiente
-        return "PENDIENTE";
-    }
-
-    /**
-     * Detecta el tipo de estado basado en el código numérico
-    */
-    private String detectarTipoEstadoPorCodigo(String codigo) {
-        // por defecto dejamos que todos los códigos son de tipo PENDIENTE hasta que se realice el cambio de forma automatica
-        return "PENDIENTE";
-    }
-
-    /**
-     * Obtiene el valor de la fila buscando por múltiples nombres de columnas posibles
-    */
-    private Object getValueFromRow(Map<String, Object> row, String... possibleKeys) {
-        if (row == null) return null;
-        
+    // Metodos auxliares diferentes
+    private Long getLongValueFromRow(Map<String, Object> row, String... possibleKeys) {
         for (String key : possibleKeys) {
-            if (row.containsKey(key)) {
-                Object value = row.get(key);
-                if (value != null && !value.toString().isEmpty()) {
-                    return value;
+            Object value = row.get(key);
+            if (value != null) {
+                try {
+                    if (value instanceof Number) {
+                        return ((Number) value).longValue();
+                    }
+                    String str = value.toString().trim();
+                    if (!str.isEmpty()) {
+                        return Long.parseLong(str.replaceAll("[^\\d]", ""));
+                    }
+                } catch (Exception e) {
+                    log.debug("No se pudo convertir '{}' a Long: {}", key, value);
                 }
             }
         }
         return null;
     }
 
-    /**
-     * Limpiamos las fórmulas de Excel y devuelve el valor real si es posible
-    */
-    private Object cleanExcelFormula(Object value){
-        if(value == null) return null;
-
-        String strValue = value.toString();
-
-        // si es una fórmula de Excel, intenta extraer algún valor o retorna null
-        if(EXCEL_FORMULA_PATTERN.matcher(strValue).find()){
-            log.debug("Detected Excel formula: {}", strValue);
-            return null;
-        }
-
-        return value;
-   }
-
-    private Long convertToLong(Object value) {
-        if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).longValue();
-        if (value instanceof String) {
-            String str = ((String) value).trim().replaceAll("[^\\d]", "");
-            if (str.isEmpty()) return null;
-            try {
-                return Long.parseLong(str);
-            } catch (NumberFormatException e) {
-                return null;
+    private Double getDoubleValueFromRow(Map<String, Object> row, String... possibleKeys) {
+        for (String key : possibleKeys) {
+            Object value = row.get(key);
+            if (value != null) {
+                try {
+                    if (value instanceof Number) {
+                        return ((Number) value).doubleValue();
+                    }
+                    String str = value.toString().trim()
+                        .replace("$", "")
+                        .replace(",", "")
+                        .replace(" ", "");
+                    if (!str.isEmpty()) {
+                        try {
+                            return Double.parseDouble(str);
+                        } catch (Exception e) {
+                            log.warn("No se pudo convertir '{}' a Double: {}", key, value);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("No se pudo convertir '{}' a Double: {}", key, value);
+                }
             }
         }
         return null;
     }
-    
-    private Integer convertToInteger(Object value) {
-        if (value == null) return 0;
-        if (value instanceof Number) return ((Number) value).intValue();
-        if (value instanceof String) {
-            String str = ((String) value).trim().replaceAll("[^\\d]", "");
-            if (str.isEmpty()) return 0;
-            try {
-                return Integer.parseInt(str);
-            } catch (NumberFormatException e) {
-                return 0;
+
+    private String getStringValueFromRow(Map<String, Object> row, String... possibleKeys) {
+        for (String key : possibleKeys) {
+            Object value = row.get(key);
+            if (value != null) {
+                String str = value.toString().trim();
+                if (!str.isEmpty()) {
+                    return str;
+                }
             }
         }
-        return 0;
-    }
-    
-    private String convertToString(Object value) {
-        if(value == null) return null;
-        String str = value.toString().trim();
-        return str.isEmpty() ? null : str;
-    }
-    
-    private Date convertToDate(Object value) {
-        if(value == null) return null;
 
-        // si la fecha es de tipo java.sql.Date
-        if(value instanceof Date){
-            return (Date) value;
-        }
-
-        // si la fecha es de tipo java.util.Date
-        if(value instanceof java.util.Date){
-            java.util.Date utilDate = (java.util.Date) value;
-            return new Date(utilDate.getTime());
-        }
-
-        // en caso de ser númerico (fecha de Excel como número)
-        if(value instanceof Number){
-            double excelData = ((Number) value).doubleValue();
-
-            // las fechas de Excel empiezan desde 1990-01-01
-            java.util.Date utilDate = DateUtil.getJavaDate(excelData);
-            if(utilDate != null) {
-                return new Date(utilDate.getTime());
-            }
-            return null;
-        }
-
-        // si es un String
-        if(value instanceof String){
-            String dateStr = (String) value;
-
-            // verificamos valores especiales
-            String upperDateStr = dateStr.trim().toUpperCase();
-
-            if(upperDateStr.equals("S/I")      || upperDateStr.equals("N/A")       || upperDateStr.equals("SIN INFORMACION") ||
-               upperDateStr.equals("SIN INFO") || upperDateStr.equals("NO APLICA") || upperDateStr.equals("NA") ||
-               upperDateStr.equals("---")      || upperDateStr.equals("___")) {
-                    log.debug("Valor especial detectado en fecha: '{}', retornando null", dateStr);
-                return null;
-            }
-
-            return parseDate(dateStr);
-        }
-
+        log.debug("No se encontró valor para keys: {}", (Object) possibleKeys);
         return null;
     }
 
-    private Date parseDate(String dateStr) {
-        if(dateStr == null || dateStr.trim().isEmpty()) {
+    private java.util.Date getDateValueFromRow(Map<String, Object> row, String... possibleKeys) {
+        for (String key : possibleKeys) {
+            Object value = row.get(key);
+            if (value != null) {
+                try {
+                    if (value instanceof java.util.Date) {
+                        return (java.util.Date) value;
+                    }
+                    if (value instanceof java.sql.Date) {
+                        return new java.util.Date(((java.sql.Date) value).getTime());
+                    }
+                    if (value instanceof Number) {
+                        double excelData = ((Number) value).doubleValue();
+                        java.util.Date utilDate = DateUtil.getJavaDate(excelData);
+                        if (utilDate != null) {
+                            return utilDate;
+                        }
+                    }
+                    String str = value.toString().trim();
+                    if (!str.isEmpty()) {
+                        String upperStr = str.toUpperCase();
+                        if (INVALID_DATE_VALUES.contains(upperStr)) {
+                            return null;
+                        }
+                        return parseDate(str);
+                    }
+                } catch (Exception e) {
+                    log.debug("No se pudo convertir '{}' a Date: {}", key, value);
+                }
+            }
+        }
+        return null;
+    }
+
+    private java.util.Date parseDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
             return null;
         }
 
-        // limpiamos la cadena
         dateStr = dateStr.trim();
-        
-        // manejamos fechas especiales con valores NAN, NaN, S/I
+
         String upperDateStr = dateStr.toUpperCase();
-
-        // realizamos una condicion para fechas con formatos espciales
-        if(upperDateStr.equals("S/I") || upperDateStr.equals("N/A") || upperDateStr.equals("SIN INFORMACION") ||
-           upperDateStr.equals("SIN INFO") || upperDateStr.equals("NO APLICA") || upperDateStr.equals("NA") ||
-           upperDateStr.equals("---") || upperDateStr.equals("___")) {
-            log.debug("Valor no válido para fecha: '{}', retornamos null", dateStr);
+        if (INVALID_DATE_VALUES.contains(upperDateStr)) {
             return null;
         }
 
-        // si contiene formulas de excel, retorna null
         if (EXCEL_FORMULA_PATTERN.matcher(dateStr).find()) {
-            log.debug("Date field contains Excel formula: {}", dateStr);
             return null;
         }
 
-        // verificamos si es un número (fechas de Excel como número)
         if (dateStr.matches("^\\d+(\\.\\d+)?$")) {
             try {
                 double excelDate = Double.parseDouble(dateStr);
                 java.util.Date utilDate = DateUtil.getJavaDate(excelDate);
-                if(utilDate != null){
-                    return new Date(utilDate.getTime());
+                if (utilDate != null) {
+                    return utilDate;
                 }
             } catch (NumberFormatException e) {
-                // no es un número válido
                 log.error("Number no valid: {}", e);
             }
         }
 
-        // realizamos una lista de fechas soportadas
         String[] dateFormats = {
-            "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "yyyy/MM/dd", "dd.MM.yyyy",
-            "EEE MMM dd HH:mm:ss zzz yyyy", "EEE MMM dd yyyy", "MM/dd/yyyy",
-            "dd-MMM-yyyy", "yyyyMMdd", "ddMMyyyy"
+                "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "yyyy/MM/dd", "dd.MM.yyyy",
+                "EEE MMM dd HH:mm:ss zzz yyyy", "EEE MMM dd yyyy", "MM/dd/yyyy",
+                "dd-MMM-yyyy", "yyyyMMdd", "ddMMyyyy"
         };
 
-        for(String format: dateFormats){
+        for (String format : dateFormats) {
             try {
                 SimpleDateFormat sdf = new SimpleDateFormat(format);
                 sdf.setLenient(false);
                 java.util.Date parsed = sdf.parse(dateStr);
-                return new Date(parsed.getTime());                
+                return parsed;
             } catch (Exception e) {
                 // continuar
             }
         }
 
-        log.debug("Cloud not parse date: {}", dateStr);
+        log.debug("Could not parse date: {}", dateStr);
         return null;
+    }
+
+    private String getStringValue(Object value) {
+        if (value == null)
+            return null;
+        return value.toString().trim();
+    }
+
+    // 🔥 Retorna java.util.Date en lugar de java.sql.Date
+    private java.util.Date getDateValue(Object value) {
+        if (value == null)
+            return null;
+        try {
+            if (value instanceof java.util.Date) {
+                return (java.util.Date) value;
+            }
+            if (value instanceof java.sql.Date) {
+                return new java.util.Date(((java.sql.Date) value).getTime());
+            }
+            if (value instanceof Number) {
+                double excelData = ((Number) value).doubleValue();
+                java.util.Date utilDate = DateUtil.getJavaDate(excelData);
+                if (utilDate != null) {
+                    return utilDate;
+                }
+                return null;
+            }
+            String str = value.toString().trim();
+            if (str.isEmpty())
+                return null;
+
+            // Verificar valores especiales
+            String upperStr = str.toUpperCase();
+            if (INVALID_DATE_VALUES.contains(upperStr)) {
+                return null;
+            }
+
+            return parseDate(str);
+        } catch (Exception e) {
+            log.warn("Error parseando fecha: {}", value);
+            return null;
+        }
+    }
+
+    private boolean validateDto(FacturaDTO dto) {
+        if (dto == null) return false;
+        if (dto.getFolio() == null || dto.getFolio() <= 0) return false;
+        if (dto.getPeriodo() == null) return false;
+        if (dto.getGlosa() == null || dto.getGlosa().trim().isEmpty()) return false;
+        if (dto.getRutEntidad() == null || dto.getRutEntidad().trim().isEmpty()) return false;
+        if (dto.getNomEntidad() == null || dto.getNomEntidad().trim().isEmpty()) return false;
+
+        if (dto.getMontoNeto() == null) {
+            log.debug("Invalid montoNeto: {}", dto.getMontoNeto());
+            return false;
+        }
+        return true;
     }
 }

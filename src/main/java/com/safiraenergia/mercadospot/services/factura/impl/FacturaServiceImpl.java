@@ -232,9 +232,9 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
         
         return Factura.builder()
             .folio(dto.getFolio().intValue())
-            .montoNeto(dto.getMontoNeto())
-            .montoBruto(dto.getMontoBruto())
-            .montoTotal(dto.getMontoTotal())
+            .montoNeto(dto.getMontoNeto().intValue())
+            .montoBruto(dto.getMontoBruto().intValue())
+            .montoTotal(dto.getMontoTotal().intValue())
             .fechaEmision(dto.getFechaEmision())
             .fechaPago(dto.getFechaPago())
             .entidad(entidad)
@@ -286,9 +286,9 @@ public class FacturaServiceImpl extends GenericServiceImpl<Factura, Long, IFactu
     }
     
     private void updateEntity(Factura existing, FacturaDTO dto) {
-        if (dto.getMontoNeto() !=  0) existing.setMontoNeto(dto.getMontoNeto());
-        if (dto.getMontoBruto() != 0) existing.setMontoBruto(dto.getMontoBruto());
-        if (dto.getMontoTotal() != 0) existing.setMontoTotal(dto.getMontoTotal());
+        if (dto.getMontoNeto() !=  0) existing.setMontoNeto(dto.getMontoNeto().intValue());
+        if (dto.getMontoBruto() != 0) existing.setMontoBruto(dto.getMontoBruto().intValue());
+        if (dto.getMontoTotal() != 0) existing.setMontoTotal(dto.getMontoTotal().intValue());
         if (dto.getFechaPago() !=  null) existing.setFechaPago(dto.getFechaPago());
     }
 

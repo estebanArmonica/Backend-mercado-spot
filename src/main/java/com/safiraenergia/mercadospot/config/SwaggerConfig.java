@@ -24,12 +24,16 @@ import org.springframework.http.HttpHeaders;
         ),
         servers = {
                 @Server(
-                        description = "DEV SERVER",
+                        description = "LOCAL SERVER",
                         url = "http://localhost:8083"
                 ),
                 @Server(
-                        description = "PROD SERVER",
+                        description = "DEV-PROD SERVER",
                         url = "http://localhost:8095"
+                ),
+                @Server(
+                        description = "Production Server",
+                        url = "https://mercadospot-api.onrender.com"
                 )
         },
         security = @SecurityRequirement(

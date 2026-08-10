@@ -26,7 +26,7 @@ public class ETLLogger {
         // Log a archivo
         writeToFile(ERROR_LOG_FILE, logMessage);
         // También a consola
-        log.error("{} - {}", message, e.getMessage());
+        log.error("ETL Error - Job: {} - {}", message, e.getMessage());
     }
 
     public synchronized void logSuccess(String jobId, String message, int recordsInserted) {
